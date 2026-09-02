@@ -1,0 +1,9 @@
+# Generated at runtime by the workflow; never committed.
+brief_input.json
+brief_output.json
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/

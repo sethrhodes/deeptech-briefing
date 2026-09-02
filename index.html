@@ -1,0 +1,934 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>Deep-Tech Brief</title>
+<meta name="description" content="A daily opportunity brief across manufacturing, energy, and space.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>◆</text></svg>">
+<style>
+/* ── Tokens ────────────────────────────────────────────────────────────── */
+:root {
+  --bg:            #f5f5f7;
+  --bg-tint-a:     rgba(0,113,227,.10);
+  --bg-tint-b:     rgba(52,199,89,.08);
+  --surface:       rgba(255,255,255,.72);
+  --surface-solid: #ffffff;
+  --surface-inset: rgba(0,0,0,.032);
+  --chrome:        rgba(245,245,247,.72);
+  --border:        rgba(0,0,0,.08);
+  --border-strong: rgba(0,0,0,.14);
+  --text:          #1d1d1f;
+  --text-2:        #4b4b50;
+  --text-3:        #86868b;
+  --accent:        #0071e3;
+  --shadow-rest:   0 1px 2px rgba(0,0,0,.04), 0 6px 20px rgba(0,0,0,.05);
+  --shadow-lift:   0 2px 4px rgba(0,0,0,.05), 0 14px 36px rgba(0,0,0,.09);
+
+  --c-problems:    #c2410c;
+  --c-funding:     #1a7f37;
+  --c-tech:        #0058c9;
+  --c-regulatory:  #6d40c4;
+  --c-hiring:      #b5256d;
+
+  --r-card: 20px;
+  --r-pill: 999px;
+  --maxw: 1080px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg:            #000000;
+    --bg-tint-a:     rgba(10,132,255,.16);
+    --bg-tint-b:     rgba(48,209,88,.10);
+    --surface:       rgba(28,28,30,.68);
+    --surface-solid: #1c1c1e;
+    --surface-inset: rgba(255,255,255,.055);
+    --chrome:        rgba(0,0,0,.62);
+    --border:        rgba(255,255,255,.10);
+    --border-strong: rgba(255,255,255,.20);
+    --text:          #f5f5f7;
+    --text-2:        #b0b0b6;
+    --text-3:        #7c7c82;
+    --accent:        #0a84ff;
+    --shadow-rest:   0 1px 2px rgba(0,0,0,.5), 0 6px 20px rgba(0,0,0,.4);
+    --shadow-lift:   0 2px 6px rgba(0,0,0,.55), 0 16px 40px rgba(0,0,0,.55);
+
+    --c-problems:    #ff9f45;
+    --c-funding:     #4ede80;
+    --c-tech:        #64b1ff;
+    --c-regulatory:  #bf9bff;
+    --c-hiring:      #ff87c2;
+  }
+}
+
+/* ── Base ──────────────────────────────────────────────────────────────── */
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, "Helvetica Neue", Arial, sans-serif;
+  font-size: 100%;
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-optical-sizing: auto;
+  overflow-wrap: break-word;
+}
+/* Ambient wash — static, low contrast, never animated (§14) */
+body::before {
+  content: "";
+  position: fixed;
+  inset: -20vh -10vw auto;
+  height: 70vh;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(52vw 42vh at 22% 0%, var(--bg-tint-a), transparent 68%),
+    radial-gradient(46vw 38vh at 84% 6%, var(--bg-tint-b), transparent 70%);
+}
+a { color: var(--accent); text-decoration: none; }
+button { font: inherit; color: inherit; }
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
+/* ── Chrome: translucent, content scrolls beneath (§12) ────────────────── */
+.chrome {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: var(--chrome);
+  backdrop-filter: saturate(180%) blur(24px);
+  -webkit-backdrop-filter: saturate(180%) blur(24px);
+  /* Scroll edge effect, not a hard 1px divider */
+  box-shadow: 0 1px 0 var(--border), 0 12px 20px -20px rgba(0,0,0,.35);
+}
+.chrome-inner {
+  max-width: var(--maxw);
+  margin: 0 auto;
+  padding: 0.75rem clamp(1rem, 4vw, 2rem) 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+.brand { display: flex; align-items: center; gap: .7rem; min-width: 0; }
+.brand-mark {
+  flex: none;
+  width: 2.15rem; height: 2.15rem;
+  display: grid; place-items: center;
+  border-radius: 11px;
+  background: linear-gradient(155deg, var(--accent), color-mix(in oklab, var(--accent) 55%, #6d40c4));
+  color: #fff;
+  box-shadow: 0 2px 8px color-mix(in oklab, var(--accent) 40%, transparent);
+}
+.brand-mark svg { width: 1.05rem; height: 1.05rem; display: block; }
+.brand h1 {
+  margin: 0;
+  font-size: 1.0625rem;
+  font-weight: 600;
+  letter-spacing: -0.014em;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+.brand p {
+  margin: 0;
+  font-size: .75rem;
+  font-weight: 400;
+  letter-spacing: .004em;
+  color: var(--text-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.chrome-actions { margin-left: auto; display: flex; gap: .4rem; }
+.ghost-btn {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: var(--r-pill);
+  padding: .34rem .8rem;
+  font-size: .8125rem;
+  font-weight: 500;
+  letter-spacing: -0.003em;
+  cursor: pointer;
+  transition: transform 100ms ease-out, background-color 160ms ease, border-color 160ms ease;
+}
+.ghost-btn:hover { border-color: var(--border-strong); }
+.ghost-btn:active { transform: scale(.96); }
+.ghost-btn[hidden] { display: none; }
+
+/* Date rail */
+.rail {
+  max-width: var(--maxw);
+  margin: 0 auto;
+  padding: .1rem clamp(1rem, 4vw, 2rem) .7rem;
+  display: flex;
+  gap: .4rem;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.rail::-webkit-scrollbar { display: none; }
+.rail:empty { display: none; }
+.rail-chip {
+  flex: none;
+  scroll-snap-align: center;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-2);
+  border-radius: 13px;
+  padding: .34rem .68rem;
+  cursor: pointer;
+  text-align: center;
+  line-height: 1.15;
+  transition: transform 100ms ease-out, background-color 180ms ease, color 180ms ease, border-color 180ms ease;
+}
+.rail-chip:active { transform: scale(.95); }
+.rail-chip .dow {
+  display: block;
+  font-size: .625rem;
+  font-weight: 600;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  transition: color 180ms ease;
+}
+.rail-chip .dnum { display: block; font-size: .875rem; font-weight: 600; letter-spacing: -0.01em; }
+.rail-chip[aria-current="true"] {
+  background: var(--text);
+  border-color: var(--text);
+  color: var(--bg);
+}
+.rail-chip[aria-current="true"] .dow { color: color-mix(in oklab, var(--bg) 68%, var(--text)); }
+
+/* ── Layout ────────────────────────────────────────────────────────────── */
+main {
+  max-width: var(--maxw);
+  margin: 0 auto;
+  padding: clamp(1.5rem, 4vw, 2.75rem) clamp(1rem, 4vw, 2rem) 4rem;
+}
+
+/* Hero — the day's summarizing header */
+.hero { margin-bottom: 1.75rem; }
+.hero-eyebrow {
+  font-size: .75rem;
+  font-weight: 600;
+  letter-spacing: .085em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 .45rem;
+}
+.hero h2 {
+  margin: 0;
+  font-size: clamp(1.85rem, 4.6vw, 2.9rem);
+  font-weight: 700;
+  line-height: 1.06;          /* tight leading for large text (§15) */
+  letter-spacing: -0.028em;   /* negative tracking as it grows */
+}
+.hero-lede {
+  margin: .6rem 0 0;
+  max-width: 46ch;
+  font-size: 1.0625rem;
+  line-height: 1.5;
+  letter-spacing: -0.004em;
+  color: var(--text-2);
+}
+.hero-meta {
+  margin-top: 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: .4rem .45rem;
+}
+.tally {
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  font-size: .75rem;
+  font-weight: 500;
+  letter-spacing: .002em;
+  color: var(--text-2);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-pill);
+  padding: .26rem .62rem .26rem .48rem;
+}
+.dot { width: .5rem; height: .5rem; border-radius: 50%; background: currentColor; flex: none; }
+
+/* Filters — segmented control */
+.filters {
+  display: flex;
+  gap: .35rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: .28rem;
+  margin: 0 0 1.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+}
+.filters::-webkit-scrollbar { display: none; }
+.filters:empty { display: none; }
+.seg {
+  flex: none;
+  border: 0;
+  background: transparent;
+  color: var(--text-2);
+  border-radius: var(--r-pill);
+  padding: .36rem .82rem;
+  font-size: .8125rem;
+  font-weight: 500;
+  letter-spacing: -0.004em;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: transform 100ms ease-out, background-color 180ms ease, color 180ms ease;
+}
+.seg:active { transform: scale(.96); }
+.seg[aria-pressed="true"] {
+  background: var(--surface-solid);
+  color: var(--text);
+  box-shadow: 0 1px 3px rgba(0,0,0,.10);
+  font-weight: 600;
+}
+
+/* Section */
+.section { margin-bottom: 2.5rem; scroll-margin-top: 8.5rem; }
+.section-head {
+  display: flex;
+  align-items: baseline;
+  gap: .6rem;
+  padding-bottom: .7rem;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
+}
+.section-head h3 {
+  margin: 0;
+  font-size: 1.0625rem;
+  font-weight: 600;
+  letter-spacing: -0.012em;
+  color: var(--sect);
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+}
+.section-count {
+  margin-left: auto;
+  font-size: .75rem;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-3);
+}
+.section-blurb {
+  margin: -.5rem 0 1rem;
+  font-size: .8125rem;
+  line-height: 1.45;
+  color: var(--text-3);
+  max-width: 58ch;
+}
+
+/* Cards */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr));
+  gap: .875rem;
+  align-items: start;
+}
+.card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: .55rem;
+  padding: 1.15rem 1.2rem 1.05rem;
+  border: 1px solid var(--border);
+  border-radius: var(--r-card);
+  background: var(--surface-solid);
+  box-shadow: var(--shadow-rest);
+  transition: transform 260ms cubic-bezier(.22,.61,.36,1), box-shadow 260ms ease, border-color 260ms ease;
+}
+.card::before {
+  content: "";
+  position: absolute;
+  left: 1.2rem; right: 1.2rem; top: 0;
+  height: 2px;
+  border-radius: 0 0 2px 2px;
+  background: var(--sect);
+  opacity: .85;
+}
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lift);
+  border-color: var(--border-strong);
+}
+.card-kicker {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  font-size: .6875rem;
+  font-weight: 600;
+  letter-spacing: .075em;
+  text-transform: uppercase;
+  color: var(--sect);
+}
+.card h4 {
+  margin: 0;
+  font-size: 1.1875rem;
+  font-weight: 600;
+  line-height: 1.24;
+  letter-spacing: -0.017em;
+  text-wrap: balance;
+}
+.card p {
+  margin: 0;
+  font-size: .9375rem;
+  line-height: 1.56;
+  letter-spacing: -0.002em;
+  color: var(--text-2);
+}
+.note {
+  margin-top: .15rem;
+  padding: .65rem .8rem;
+  border-radius: 12px;
+  background: var(--surface-inset);
+  border-left: 2.5px solid var(--sect);
+}
+.note-label {
+  display: block;
+  font-size: .625rem;
+  font-weight: 700;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+  color: var(--sect);
+  margin-bottom: .22rem;
+}
+.note p { font-size: .875rem; line-height: 1.5; color: var(--text); }
+.card-foot {
+  margin-top: auto;
+  padding-top: .8rem;
+  display: flex;
+  align-items: center;
+  gap: .45rem;
+  font-size: .78125rem;
+  border-top: 1px solid var(--border);
+}
+.card-source {
+  font-weight: 500;
+  color: var(--text-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.card-link {
+  margin-left: auto;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: .28rem;
+  font-weight: 500;
+  letter-spacing: -0.003em;
+  padding: .2rem .3rem;
+  margin-right: -.3rem;
+  border-radius: 8px;
+  transition: transform 100ms ease-out, background-color 160ms ease;
+}
+.card-link:hover { background: var(--surface-inset); }
+.card-link:active { transform: scale(.96); }
+.card-link svg { width: .72rem; height: .72rem; }
+
+/* ── States ────────────────────────────────────────────────────────────── */
+.panel {
+  text-align: center;
+  padding: clamp(2.5rem, 8vw, 4.5rem) 1.75rem;
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  background: var(--surface-solid);
+  box-shadow: var(--shadow-rest);
+}
+.panel-icon {
+  width: 3rem; height: 3rem;
+  margin: 0 auto 1.1rem;
+  display: grid; place-items: center;
+  border-radius: 15px;
+  background: var(--surface-inset);
+  color: var(--text-3);
+}
+.panel-icon svg { width: 1.4rem; height: 1.4rem; }
+.panel h2 {
+  margin: 0 0 .5rem;
+  font-size: 1.375rem;
+  font-weight: 600;
+  letter-spacing: -0.018em;
+}
+.panel p {
+  margin: 0 auto;
+  max-width: 42ch;
+  font-size: .9375rem;
+  line-height: 1.55;
+  color: var(--text-2);
+}
+.panel code {
+  font-family: ui-monospace, "SF Mono", SFMono-Regular, Menlo, monospace;
+  font-size: .85em;
+  background: var(--surface-inset);
+  padding: .12em .4em;
+  border-radius: 5px;
+}
+.panel .ghost-btn { margin-top: 1.25rem; }
+
+/* Skeleton */
+.skel-card {
+  border: 1px solid var(--border);
+  border-radius: var(--r-card);
+  background: var(--surface-solid);
+  padding: 1.15rem 1.2rem;
+  box-shadow: var(--shadow-rest);
+}
+.skel {
+  height: .7rem;
+  border-radius: var(--r-pill);
+  background: var(--surface-inset);
+  margin-bottom: .6rem;
+  position: relative;
+  overflow: hidden;
+}
+.skel::after {
+  content: "";
+  position: absolute; inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, var(--border), transparent);
+  animation: shimmer 1.6s ease-in-out infinite;
+}
+@keyframes shimmer { to { transform: translateX(100%); } }
+
+/* Entry — opacity + small rise, staggered */
+.rise { animation: rise 520ms cubic-bezier(.22,.61,.36,1) backwards; }
+@keyframes rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: none; }
+}
+
+footer {
+  max-width: var(--maxw);
+  margin: 0 auto;
+  padding: 0 clamp(1rem, 4vw, 2rem) 3rem;
+  font-size: .75rem;
+  line-height: 1.6;
+  color: var(--text-3);
+  display: flex;
+  flex-wrap: wrap;
+  gap: .35rem .75rem;
+  border-top: 1px solid var(--border);
+  padding-top: 1.5rem;
+}
+.sr-only {
+  position: absolute; width: 1px; height: 1px;
+  padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+/* ── Accessibility preferences (§14) ───────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+  .card:hover { transform: none; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .chrome, .filters, .rail-chip, .tally, .ghost-btn {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: var(--surface-solid);
+  }
+}
+@media (prefers-contrast: more) {
+  :root { --border: rgba(0,0,0,.35); --border-strong: rgba(0,0,0,.6); --text-2: #2c2c30; --text-3: #4a4a4f; }
+  @media (prefers-color-scheme: dark) {
+    :root { --border: rgba(255,255,255,.45); --border-strong: rgba(255,255,255,.7); --text-2: #dcdce0; --text-3: #b8b8bd; }
+  }
+  .chrome, .filters { backdrop-filter: none; -webkit-backdrop-filter: none; background: var(--surface-solid); }
+}
+@media (max-width: 44rem) {
+  /* These scroll horizontally on narrow screens — fade the edge so it reads
+     as "more this way" rather than a clipped element. */
+  .rail, .filters {
+    -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 2rem), transparent);
+          mask-image: linear-gradient(90deg, #000 calc(100% - 2rem), transparent);
+  }
+}
+@media print {
+  .chrome, .filters, .rail { display: none !important; }
+  .card { break-inside: avoid; box-shadow: none; }
+}
+</style>
+</head>
+<body>
+
+<header class="chrome">
+  <div class="chrome-inner">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2 L20 12 L12 22 L4 12 Z"/>
+        </svg>
+      </span>
+      <div>
+        <h1>Deep-Tech Brief</h1>
+        <p>Manufacturing &middot; Energy &middot; Space</p>
+      </div>
+    </div>
+    <div class="chrome-actions">
+      <button class="ghost-btn" id="btn-latest" type="button" hidden>Latest</button>
+    </div>
+  </div>
+  <nav class="rail" id="rail" aria-label="Briefing dates"></nav>
+</header>
+
+<main>
+  <div id="stage" aria-live="polite" aria-busy="true"></div>
+</main>
+
+<footer>
+  <span>Deep-tech opportunity brief &middot; assembled weekday mornings.</span>
+  <span id="foot-status"></span>
+</footer>
+
+<script>
+(() => {
+  "use strict";
+
+  // ── Config ──────────────────────────────────────────────────────────────
+  // Anon/publishable key. Safe to embed: RLS grants public SELECT only.
+  const SUPABASE_URL = "https://kcdlsaqqcgngrwreucei.supabase.co";
+  const SUPABASE_ANON = "sb_publishable_CN7p9jB8uOtCE_JOsGUlYQ_1Rzqc-E5";
+  const MAX_DAYS = 60;
+
+  const SECTIONS = [
+    { key: "problems_surfaced",      label: "Problems Surfaced",      short: "Problems",   color: "var(--c-problems)",
+      blurb: "Specific technical or operational pain someone stated out loud." },
+    { key: "funding_signals",        label: "Funding Signals",        short: "Funding",    color: "var(--c-funding)",
+      blurb: "Rounds, solicitations, and awards — who got money, for what, from whom." },
+    { key: "technical_breakthroughs",label: "Technical Breakthroughs",short: "Technical",  color: "var(--c-tech)",
+      blurb: "Demonstrated results only. Records, first flights, qualified parts, validated data." },
+    { key: "regulatory_shifts",      label: "Regulatory Shifts",      short: "Regulatory", color: "var(--c-regulatory)",
+      blurb: "Rules that actually changed — permitting, interconnection, licensing, export controls." },
+    { key: "hiring_failures",        label: "Hiring &amp; Failures",  short: "Hiring",     color: "var(--c-hiring)",
+      blurb: "Hiring surges, layoffs, shutdowns, pivots. Both directions are signal." },
+  ];
+  const SECT_BY_KEY = Object.fromEntries(SECTIONS.map(s => [s.key, s]));
+
+  // ── Utilities ───────────────────────────────────────────────────────────
+  const $ = sel => document.querySelector(sel);
+  const stage = $("#stage");
+  const rail = $("#rail");
+  const btnLatest = $("#btn-latest");
+  const footStatus = $("#foot-status");
+
+  // Everything rendered below originates from the database. Escape it all.
+  const esc = v => String(v ?? "").replace(/[&<>"']/g, c =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+  const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+  const parseDay = iso => new Date(iso + "T12:00:00");   // noon: immune to TZ rollover
+
+  const fmtLong = iso => parseDay(iso).toLocaleDateString(undefined,
+    { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+  const fmtDow  = iso => parseDay(iso).toLocaleDateString(undefined, { weekday: "short" });
+  const fmtDnum = iso => parseDay(iso).toLocaleDateString(undefined, { day: "numeric" });
+  const fmtMon  = iso => parseDay(iso).toLocaleDateString(undefined, { month: "short" });
+
+  function relativeDay(iso) {
+    const days = Math.round((parseDay(iso) - parseDay(todayISO())) / 86400000);
+    if (days === 0) return "Today";
+    if (days === -1) return "Yesterday";
+    return null;   // fmtLong already names the weekday — no "Sat · Saturday"
+
+  }
+  function todayISO() {
+    const d = new Date();
+    return [d.getFullYear(), String(d.getMonth() + 1).padStart(2, "0"),
+            String(d.getDate()).padStart(2, "0")].join("-");
+  }
+
+  // Only ever links out to http(s) — never javascript: or data:
+  const safeUrl = u => {
+    try {
+      const p = new URL(String(u), location.href);
+      return (p.protocol === "http:" || p.protocol === "https:") ? p.href : null;
+    } catch { return null; }
+  };
+  const hostOf = u => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return ""; } };
+
+  const ICON_LINK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M9 7h8v8"/></svg>';
+
+  // ── State ───────────────────────────────────────────────────────────────
+  const state = { days: [], activeDate: null, filter: "all" };
+
+  // ── Data ────────────────────────────────────────────────────────────────
+  async function load() {
+    if (new URLSearchParams(location.search).has("demo")) return demoData();
+
+    const select = "id,brief_date,kind,items(id,section,headline,summary,founder_note,source_name,source_url)";
+    const url = SUPABASE_URL + "/rest/v1/briefings?select=" + encodeURIComponent(select) +
+                "&order=brief_date.desc&limit=" + MAX_DAYS;
+    const res = await fetch(url, { headers: { apikey: SUPABASE_ANON, Accept: "application/json" } });
+    if (!res.ok) throw new Error("Supabase responded " + res.status + " " + res.statusText);
+
+    const rows = await res.json();
+    return rows
+      .filter(r => ISO_DATE.test(r.brief_date))
+      .map(r => ({ date: r.brief_date, kind: r.kind, items: Array.isArray(r.items) ? r.items : [] }))
+      .sort((a, b) => b.date.localeCompare(a.date));
+  }
+
+  // ── Render: chrome ──────────────────────────────────────────────────────
+  function renderRail() {
+    if (state.days.length < 2) { rail.innerHTML = ""; return; }
+    rail.innerHTML = state.days.map(d => {
+      const on = d.date === state.activeDate;
+      return '<button class="rail-chip" type="button" role="tab" data-date="' + d.date + '"' +
+             ' aria-current="' + on + '" aria-label="' + esc(fmtLong(d.date)) + '">' +
+             '<span class="dow">' + esc(fmtDow(d.date)) + " " + esc(fmtMon(d.date)) + '</span>' +
+             '<span class="dnum">' + esc(fmtDnum(d.date)) + '</span></button>';
+    }).join("");
+    const active = rail.querySelector('[aria-current="true"]');
+    if (active) active.scrollIntoView({ block: "nearest", inline: "center" });
+    btnLatest.hidden = state.activeDate === state.days[0].date;
+  }
+
+  function renderFilters(counts) {
+    const live = SECTIONS.filter(s => counts[s.key] > 0);
+    if (live.length < 2) return "";
+    const total = live.reduce((n, s) => n + counts[s.key], 0);
+    const seg = (key, label, n) =>
+      '<button class="seg" type="button" data-filter="' + key + '" aria-pressed="' +
+      (state.filter === key) + '">' + label + ' <span style="opacity:.55;font-variant-numeric:tabular-nums">' + n + '</span></button>';
+    return '<div class="filters" role="group" aria-label="Filter by section">' +
+      seg("all", "All", total) + live.map(s => seg(s.key, s.short, counts[s.key])).join("") + "</div>";
+  }
+
+  // ── Render: content ─────────────────────────────────────────────────────
+  function cardHTML(item, i) {
+    const sect = SECT_BY_KEY[item.section];
+    if (!sect) return "";
+    const url = safeUrl(item.source_url);
+    const source = item.source_name || hostOf(url || "") || "Source";
+    const note = (item.founder_note || "").trim();
+
+    return '<article class="card rise" style="--sect:' + sect.color +
+           ';animation-delay:' + Math.min(i * 45, 320) + 'ms">' +
+      '<div class="card-kicker"><span class="dot"></span>' + sect.short + '</div>' +
+      '<h4>' + esc(item.headline) + '</h4>' +
+      '<p>' + esc(item.summary) + '</p>' +
+      (note ? '<div class="note"><span class="note-label">Why it could be a company</span><p>' +
+              esc(note) + '</p></div>' : "") +
+      '<div class="card-foot"><span class="card-source">' + esc(source) + '</span>' +
+      (url ? '<a class="card-link" href="' + esc(url) + '" target="_blank" rel="noopener noreferrer">Read' +
+             ICON_LINK + '<span class="sr-only"> — opens in a new tab</span></a>' : "") +
+      '</div></article>';
+  }
+
+  function heroHTML(day, counts, total) {
+    const rel = relativeDay(day.date);
+    const lead = SECTIONS.filter(s => counts[s.key] > 0)
+                         .sort((a, b) => counts[b.key] - counts[a.key]);
+    const lede = total === 0
+      ? "This briefing ran but surfaced nothing worth your attention. That is a legitimate result, not a failure."
+      : total + (total === 1 ? " item" : " items") + " across " +
+        lead.length + (lead.length === 1 ? " section" : " sections") + ", led by " +
+        lead[0].label.replace("&amp;", "&").toLowerCase() + ".";
+
+    return '<section class="hero rise">' +
+      '<p class="hero-eyebrow">' + (rel ? esc(rel) + " &middot; " : "") + esc(fmtLong(day.date)) + '</p>' +
+      '<h2>' + (total === 0 ? "A quiet day" : "What moved in deep tech") + '</h2>' +
+      '<p class="hero-lede">' + esc(lede) + '</p>' +
+      (total ? '<div class="hero-meta">' + lead.map(s =>
+        '<span class="tally" style="color:' + s.color + '"><span class="dot"></span>' +
+        '<span style="color:var(--text-2)">' + s.label + " " + counts[s.key] + '</span></span>').join("") +
+        '</div>' : "") +
+      '</section>';
+  }
+
+  function sectionsHTML(day) {
+    const shown = SECTIONS.filter(s => state.filter === "all" || state.filter === s.key);
+    let html = "";
+    let n = 0;
+    for (const s of shown) {
+      const items = day.items.filter(it => it.section === s.key);
+      if (!items.length) continue;
+      html += '<section class="section" style="--sect:' + s.color + '" id="s-' + s.key + '">' +
+        '<div class="section-head"><h3><span class="dot"></span>' + s.label + '</h3>' +
+        '<span class="section-count">' + items.length + '</span></div>' +
+        '<p class="section-blurb">' + s.blurb + '</p>' +
+        '<div class="grid">' + items.map(it => cardHTML(it, n++)).join("") + '</div></section>';
+    }
+    return html;
+  }
+
+  function render() {
+    stage.setAttribute("aria-busy", "false");
+
+    if (!state.days.length) {
+      stage.innerHTML = emptyPanel(
+        "No briefings yet",
+        "The pipeline is wired up but has not written a day yet. It runs weekdays at 13:13 UTC, and you can trigger it any time with <code>gh workflow run daily-brief.yml</code>."
+      );
+      footStatus.textContent = "";
+      return;
+    }
+
+    const day = state.days.find(d => d.date === state.activeDate) || state.days[0];
+    const counts = {};
+    for (const s of SECTIONS) counts[s.key] = day.items.filter(i => i.section === s.key).length;
+    const total = SECTIONS.reduce((n, s) => n + counts[s.key], 0);
+
+    const body = total === 0
+      ? emptyPanel("No padding, by design",
+          "A short brief is the correct output when nothing moved. The next one runs the following weekday at 13:13&nbsp;UTC.")
+      : (sectionsHTML(day) || emptyPanel("Nothing in this section", "Try another section, or switch back to All."));
+
+    stage.innerHTML = heroHTML(day, counts, total) + renderFilters(counts) + body;
+    footStatus.textContent = state.days.length + (state.days.length === 1 ? " day" : " days") + " in the archive.";
+    renderRail();
+  }
+
+  function emptyPanel(title, body) {
+    return '<div class="panel rise"><div class="panel-icon">' +
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' +
+      '<rect x="3" y="4" width="18" height="17" rx="3"/><path d="M3 9h18M8 2v4M16 2v4"/></svg></div>' +
+      '<h2>' + title + '</h2><p>' + body + '</p></div>';
+  }
+
+  function renderSkeleton() {
+    stage.innerHTML = '<section class="hero"><div class="skel" style="width:9rem;height:.6rem"></div>' +
+      '<div class="skel" style="width:min(100%,22rem);height:2rem;margin-top:.9rem"></div>' +
+      '<div class="skel" style="width:min(100%,17rem)"></div></section>' +
+      '<div class="grid">' + Array.from({ length: 4 }, () =>
+        '<div class="skel-card"><div class="skel" style="width:4.5rem;height:.55rem"></div>' +
+        '<div class="skel" style="width:92%;height:1.05rem"></div>' +
+        '<div class="skel" style="width:100%"></div><div class="skel" style="width:78%"></div>' +
+        '<div class="skel" style="width:45%;margin-bottom:0"></div></div>').join("") + '</div>';
+  }
+
+  function renderError(err) {
+    stage.setAttribute("aria-busy", "false");
+    stage.innerHTML = '<div class="panel"><div class="panel-icon">' +
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' +
+      '<circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 16.5v.01"/></svg></div>' +
+      '<h2>Could not reach the archive</h2><p>' + esc(err.message || String(err)) +
+      '</p><button class="ghost-btn" type="button" id="btn-retry">Try again</button></div>';
+    $("#btn-retry").addEventListener("click", boot);
+  }
+
+  // ── Interaction ─────────────────────────────────────────────────────────
+  function setDate(date, { push = true } = {}) {
+    if (!state.days.some(d => d.date === date)) return;
+    state.activeDate = date;
+    state.filter = "all";
+    if (push && location.hash.slice(1) !== date) history.pushState({ date }, "", "#" + date);
+    render();
+    window.scrollTo({ top: 0, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+  }
+
+  rail.addEventListener("click", e => {
+    const chip = e.target.closest("[data-date]");
+    if (chip) setDate(chip.dataset.date);
+  });
+
+  stage.addEventListener("click", e => {
+    const seg = e.target.closest("[data-filter]");
+    if (!seg) return;
+    state.filter = seg.dataset.filter;
+    render();
+  });
+
+  btnLatest.addEventListener("click", () => setDate(state.days[0].date));
+
+  document.addEventListener("keydown", e => {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    const tag = (e.target.tagName || "").toLowerCase();
+    if (tag === "input" || tag === "textarea") return;
+    const i = state.days.findIndex(d => d.date === state.activeDate);
+    if (i < 0) return;
+    if (e.key === "ArrowLeft" && i < state.days.length - 1) { e.preventDefault(); setDate(state.days[i + 1].date); }
+    if (e.key === "ArrowRight" && i > 0) { e.preventDefault(); setDate(state.days[i - 1].date); }
+  });
+
+  window.addEventListener("popstate", () => {
+    const h = location.hash.slice(1);
+    if (ISO_DATE.test(h)) setDate(h, { push: false });
+    else if (state.days.length) setDate(state.days[0].date, { push: false });
+  });
+
+  // ── Boot ────────────────────────────────────────────────────────────────
+  async function boot() {
+    stage.setAttribute("aria-busy", "true");
+    renderSkeleton();
+    try {
+      state.days = await load();
+      const h = location.hash.slice(1);
+      state.activeDate = (ISO_DATE.test(h) && state.days.some(d => d.date === h))
+        ? h : (state.days[0] && state.days[0].date) || null;
+      render();
+    } catch (err) {
+      renderError(err);
+    }
+  }
+
+  // ── Demo data: `?demo=1` renders sample content without touching the DB ──
+  function demoData() {
+    const mk = (section, headline, summary, founder_note, source_name, source_url) =>
+      ({ section, headline, summary, founder_note, source_name, source_url });
+    const day = d => { const t = new Date(); t.setDate(t.getDate() - d); return t.toISOString().slice(0, 10); };
+    return [
+      { date: day(0), kind: "daily", items: [
+        mk("problems_surfaced", "Constellation operators say reaction wheels are the bottleneck, not launch",
+           "Three smallsat operators put wheel bearing life at 4–6 years against 7-year design lives, and named it the dominant driver of early deorbit.",
+           "A qualified, life-tested reaction wheel at commercial volume is a hardware company with a captive customer list.",
+           "Payload", "https://example.com/a"),
+        mk("problems_surfaced", "Grid interconnection queues now average 4.3 years in MISO",
+           "MISO's own queue report puts median time from request to agreement at 4.3 years, up from 2.9 in 2020, with 68% of projects withdrawing before completion.",
+           "The withdrawal rate, not the wait, is the business: pre-screening studies sold to developers before they enter the queue.",
+           "Utility Dive", "https://example.com/b"),
+        mk("funding_signals", "DOE opens $180M FOA for long-duration storage manufacturing",
+           "Concept papers due in six weeks. Scope covers iron-air, thermal, and flow chemistries, with a domestic content requirement on cell stacks.",
+           "The domestic content clause is the wedge — a US stack supplier has a mandated market before the technology competes on price.",
+           "Latitude Media", "https://example.com/c"),
+        mk("technical_breakthroughs", "Ceramic matrix composite nozzle survives 40 restarts on a full-duration test",
+           "A hot-fire campaign logged 40 restarts and 1,100 cumulative seconds with no measurable throat erosion, against a 12-restart qualification target.",
+           "If the process transfers off a single hand-built article, the opportunity is the production line, not the part.",
+           "NASASpaceflight", "https://example.com/d"),
+        mk("regulatory_shifts", "FAA raises the Part 450 debris-analysis threshold, cutting license timelines",
+           "The rule change lets operators use a simplified casualty model below a stated debris mass, removing a step that added roughly nine weeks.",
+           "Compliance tooling that produces the new analysis automatically is a small, defensible software business.",
+           "SpaceNews", "https://example.com/e"),
+        mk("hiring_failures", "Battery recycler cuts 40% of staff after cathode contract lapses",
+           "The company confirmed it shed 112 roles and paused its second line after a single offtake agreement expired without renewal.",
+           "Single-offtake dependence is the recurring failure mode in recycling — aggregation across many small feedstock sources is the unbuilt alternative.",
+           "Canary Media", "https://example.com/f"),
+      ]},
+      { date: day(1), kind: "daily", items: [
+        mk("technical_breakthroughs", "Cold-spray repair qualified for flight-critical aluminum structure",
+           "An OEM published fatigue data showing repaired coupons at 94% of parent-material life across 10⁷ cycles.",
+           "Field-deployable repair changes the economics of every aluminum airframe already flying.",
+           "The Prepared", "https://example.com/g"),
+        mk("funding_signals", "Series B for a heat-pump manufacturer building its own compressors",
+           "$62M led by an industrial strategic, explicitly earmarked for vertical integration into variable-speed compressors.",
+           "Vertical integration into compressors signals the supply constraint is upstream of assembly.",
+           "Heatmap AM", "https://example.com/h"),
+      ]},
+      { date: day(4), kind: "daily", items: [] },
+    ];
+  }
+
+  boot();
+})();
+</script>
+</body>
+</html>

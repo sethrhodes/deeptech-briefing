@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<opml version="2.0">
+  <head>
+    <title>Deep-tech briefing feeds</title>
+    <ownerName>deeptech-briefing</ownerName>
+  </head>
+  <body>
+    <!--
+      daily_brief.py reads only the categories named in DAILY_CATEGORIES:
+      "Space", "Energy", and "Manufacturing and Industrial". The "Weekly"
+      category below is carried for reading by hand and is ignored by the
+      daily gather step.
+
+      Every URL in the three daily categories was fetched and confirmed to
+      return parseable XML with current items. Two caveats worth knowing:
+        - SemiAnalysis: the feed parses, but its newest item is from
+          2025-09-16. Their public RSS looks abandoned; the 48h window will
+          simply match nothing rather than error.
+        - Scope of Work (formerly The Prepared) publishes irregularly, so
+          gaps of several weeks are normal, not a broken feed.
+    -->
+    <outline text="Space" title="Space">
+      <outline type="rss" text="Payload" title="Payload"
+               xmlUrl="https://payloadspace.com/feed/" htmlUrl="https://payloadspace.com/"/>
+      <outline type="rss" text="SpaceNews" title="SpaceNews"
+               xmlUrl="https://spacenews.com/feed/" htmlUrl="https://spacenews.com/"/>
+      <outline type="rss" text="NASASpaceflight" title="NASASpaceflight"
+               xmlUrl="https://www.nasaspaceflight.com/feed/" htmlUrl="https://www.nasaspaceflight.com/"/>
+      <outline type="rss" text="Ars Technica — Space" title="Ars Technica — Space"
+               xmlUrl="https://arstechnica.com/space/feed/" htmlUrl="https://arstechnica.com/space/"/>
+    </outline>
+
+    <outline text="Energy" title="Energy">
+      <outline type="rss" text="Heatmap News" title="Heatmap News"
+               xmlUrl="https://heatmap.news/feeds/feed.rss" htmlUrl="https://heatmap.news/"/>
+      <outline type="rss" text="Latitude Media" title="Latitude Media"
+               xmlUrl="https://www.latitudemedia.com/feed" htmlUrl="https://www.latitudemedia.com/"/>
+      <outline type="rss" text="Canary Media" title="Canary Media"
+               xmlUrl="https://www.canarymedia.com/rss.rss" htmlUrl="https://www.canarymedia.com/"/>
+      <outline type="rss" text="Utility Dive" title="Utility Dive"
+               xmlUrl="https://www.utilitydive.com/feeds/news/" htmlUrl="https://www.utilitydive.com/"/>
+      <outline type="rss" text="Volts" title="Volts"
+               xmlUrl="https://www.volts.wtf/feed" htmlUrl="https://www.volts.wtf/"/>
+    </outline>
+
+    <outline text="Manufacturing and Industrial" title="Manufacturing and Industrial">
+      <outline type="rss" text="Construction Physics" title="Construction Physics"
+               xmlUrl="https://www.construction-physics.com/feed" htmlUrl="https://www.construction-physics.com/"/>
+      <outline type="rss" text="Scope of Work" title="Scope of Work"
+               xmlUrl="https://www.scopeofwork.net/rss/" htmlUrl="https://www.scopeofwork.net/"/>
+      <outline type="rss" text="SemiAnalysis" title="SemiAnalysis"
+               xmlUrl="https://semianalysis.com/feed/" htmlUrl="https://semianalysis.com/"/>
+      <outline type="rss" text="IEEE Spectrum — Robotics" title="IEEE Spectrum — Robotics"
+               xmlUrl="https://spectrum.ieee.org/feeds/topic/robotics.rss" htmlUrl="https://spectrum.ieee.org/topic/robotics/"/>
+      <outline type="rss" text="IEEE Spectrum — Semiconductors" title="IEEE Spectrum — Semiconductors"
+               xmlUrl="https://spectrum.ieee.org/feeds/topic/semiconductors.rss" htmlUrl="https://spectrum.ieee.org/topic/semiconductors/"/>
+      <outline type="rss" text="Manufacturing Dive" title="Manufacturing Dive"
+               xmlUrl="https://www.manufacturingdive.com/feeds/news/" htmlUrl="https://www.manufacturingdive.com/"/>
+    </outline>
+
+    <!-- Not read by daily_brief.py. Weekly-tier reading. -->
+    <outline text="Weekly" title="Weekly">
+      <outline type="rss" text="Works in Progress" title="Works in Progress"
+               xmlUrl="https://www.worksinprogress.news/feed" htmlUrl="https://www.worksinprogress.news/"/>
+      <outline type="rss" text="Riskgaming (Lux Capital)" title="Riskgaming (Lux Capital)"
+               xmlUrl="https://blog.riskgaming.com/feed" htmlUrl="https://blog.riskgaming.com/"/>
+      <!-- The Diff: feed responds but is a 5-item stub last updated 2022-11-14.
+           Kept as a pointer; the live newsletter is paywalled at thediff.co. -->
+      <outline type="rss" text="The Diff" title="The Diff"
+               xmlUrl="https://www.thediff.co/rss/" htmlUrl="https://www.thediff.co/"/>
+    </outline>
+  </body>
+</opml>

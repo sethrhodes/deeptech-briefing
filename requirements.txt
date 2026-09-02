@@ -1,0 +1,6 @@
+# Runtime deps for daily_brief.py (gather + write). Nothing here talks to
+# an LLM — synthesis happens in the claude-code-action step of the workflow.
+# Upper bounds guard against a surprise major release breaking a scheduled
+# run; the floors are the versions this pipeline was verified against.
+feedparser>=6.0.12,<7
+requests>=2.32.5,<3
