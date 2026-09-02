@@ -1121,7 +1121,10 @@ import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js
         msg.textContent = /signups? not allowed/i.test(raw)
           ? "No account exists for this address yet. Create it once in Supabase → Authentication → Users."
           : /rate|too many/i.test(raw)
-            ? "Too many requests. Wait a minute and try again."
+            // Supabase's built-in mailer allows ~2 emails/hour. This is an
+            // hour-scale window, not a minute — saying "wait a minute" just
+            // gets you three more 429s.
+            ? "Email limit reached — Supabase's built-in mailer allows about 2 per hour. Wait for the window to roll over, or connect custom SMTP."
             : raw || "Could not send the link. Try again.";
         return;
       }
