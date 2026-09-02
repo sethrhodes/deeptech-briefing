@@ -600,6 +600,15 @@ footer {
   color: var(--text-2);
 }
 .gate form { margin-top: 1.35rem; display: flex; flex-direction: column; gap: .55rem; }
+.gate form[hidden] { display: none; }   /* author display: beats the UA [hidden] rule */
+.gate input.code-input {
+  font-variant-numeric: tabular-nums;
+  font-size: 1.5rem;
+  font-weight: 600;
+  letter-spacing: .38em;
+  text-indent: .38em;      /* re-centre: tracking adds a trailing gap */
+  padding: .6rem .5rem;
+}
 .gate input[type="email"] {
   width: 100%;
   font: inherit;
@@ -1079,12 +1088,19 @@ import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js
       '<div class="gate-wrap"><div class="gate rise">' +
         '<div class="gate-mark" aria-hidden="true">' + ICON_MARK + '</div>' +
         '<h2>Sign in to your brief</h2>' +
-        '<p>This archive is private. Enter your email and we\'ll send a one-time sign-in link.</p>' +
+        '<p>This archive is private. Enter your email and we\'ll send a one-time code.</p>' +
         '<form id="gate-form" novalidate>' +
           '<label class="sr-only" for="gate-email">Email address</label>' +
           '<input id="gate-email" type="email" name="email" inputmode="email" autocomplete="email" ' +
                  'spellcheck="false" placeholder="you@example.com" required>' +
-          '<button class="primary-btn" id="gate-submit" type="submit">Email me a link</button>' +
+          '<button class="primary-btn" id="gate-submit" type="submit">Email me a code</button>' +
+        '</form>' +
+        '<form id="gate-code-form" novalidate hidden>' +
+          '<label class="sr-only" for="gate-code">Six-digit sign-in code</label>' +
+          '<input id="gate-code" class="code-input" type="text" inputmode="numeric" ' +
+                 'autocomplete="one-time-code" pattern="[0-9]*" maxlength="6" ' +
+                 'placeholder="000000" spellcheck="false" required>' +
+          '<button class="primary-btn" id="gate-verify" type="submit">Verify</button>' +
         '</form>' +
         '<p class="gate-msg" id="gate-msg" role="status" data-kind="' + kind + '">' + notice + '</p>' +
         '<p class="gate-foot">Only the account this briefing belongs to can sign in. ' +
@@ -1092,7 +1108,35 @@ import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js
       '</div></div>';
 
     const form = $("#gate-form"), input = $("#gate-email"), btn = $("#gate-submit"), msg = $("#gate-msg");
+    const codeForm = $("#gate-code-form"), codeInput = $("#gate-code"), codeBtn = $("#gate-verify");
+    let pendingEmail = "";
     input.focus({ preventScroll: true });
+
+    // Verifying a typed code keeps the whole exchange inside this browser.
+    // A magic link cannot: on iOS a Home Screen app has its own storage
+    // container, the link opens in Safari, and the session lands there
+    // instead of here. The code has no such problem.
+    codeForm.addEventListener("submit", async e => {
+      e.preventDefault();
+      const token = codeInput.value.replace(/\D/g, "");
+      msg.dataset.kind = ""; msg.textContent = "";
+      if (token.length !== 6) {
+        msg.dataset.kind = "error";
+        msg.textContent = "Enter the six digits from the email.";
+        return;
+      }
+      codeBtn.disabled = true; codeBtn.textContent = "Verifying…";
+      const { error } = await sb.auth.verifyOtp({ email: pendingEmail, token, type: "email" });
+      codeBtn.disabled = false; codeBtn.textContent = "Verify";
+      if (error) {
+        msg.dataset.kind = "error";
+        msg.textContent = /expired|invalid|not found/i.test(error.message || "")
+          ? "That code is wrong or has expired. Request a new one."
+          : (error.message || "Could not verify that code.");
+        return;
+      }
+      // Success lands in onAuthStateChange, which renders the brief.
+    });
 
     form.addEventListener("submit", async e => {
       e.preventDefault();
@@ -1128,9 +1172,13 @@ import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js
             : raw || "Could not send the link. Try again.";
         return;
       }
+      pendingEmail = email;
       msg.dataset.kind = "ok";
-      msg.textContent = "Check your inbox — the link signs you in and expires shortly.";
+      msg.textContent = "Check your inbox and enter the six-digit code. The link in the same email also works on desktop.";
+      form.hidden = true;
+      codeForm.hidden = false;
       input.blur();
+      codeInput.focus({ preventScroll: true });
     });
   }
 
