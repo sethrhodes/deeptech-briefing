@@ -71,7 +71,7 @@ jobs:
             - If nothing in raw_items is worth including, write an empty
               array -- do not force items in to fill it out.
             - Write ONLY the JSON array to the file. No other output needed.
-          claude_args: '--allowedTools "Read,Write" --max-turns 5 --debug'
+          claude_args: '--allowedTools "Read,Write" --max-turns 5'
 
       # Step 3: write. Plain Python + HTTP again. No LLM.
       - name: Write to Supabase
