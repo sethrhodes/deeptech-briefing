@@ -71,7 +71,14 @@ jobs:
             - If nothing in raw_items is worth including, write an empty
               array -- do not force items in to fill it out.
             - Write ONLY the JSON array to the file. No other output needed.
-          claude_args: '--allowedTools "Read,Write" --max-turns 5'
+            - Only the Read and Write tools are available. Do not attempt any
+              other tool (no Bash, Glob, Grep, LS, TodoWrite, WebFetch). Each
+              denied attempt burns a turn for nothing.
+          # 20, not 5: the task needs ~3 turns when it goes cleanly, but a
+          # run that reaches for a disallowed tool spends turns on denials
+          # before recovering. 5 left no headroom -- a run that had already
+          # produced correct output was failed on the turn count alone.
+          claude_args: '--allowedTools "Read,Write" --max-turns 20'
 
       # Step 3: write. Plain Python + HTTP again. No LLM.
       - name: Write to Supabase
