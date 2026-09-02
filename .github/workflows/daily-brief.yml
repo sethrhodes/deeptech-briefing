@@ -71,6 +71,11 @@ jobs:
             - If nothing in raw_items is worth including, write an empty
               array -- do not force items in to fill it out.
             - Write ONLY the JSON array to the file. No other output needed.
+            - At most 2 of the 15 items may come from research or advisory
+              sources (McKinsey and similar). Admit one only when it carries a
+              specific number, survey finding, or dataset you can quote. Never
+              for framing, outlook, or "the landscape is shifting" pieces.
+              Primary reporting wins every tie.
             - Only the Read and Write tools are available. Do not attempt any
               other tool (no Bash, Glob, Grep, LS, TodoWrite, WebFetch). Each
               denied attempt burns a turn for nothing.

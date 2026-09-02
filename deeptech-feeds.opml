@@ -58,6 +58,21 @@
                xmlUrl="https://www.manufacturingdive.com/feeds/news/" htmlUrl="https://www.manufacturingdive.com/"/>
     </outline>
 
+    <!--
+      Research and advisory. Deliberately thin: of the big consultancies,
+      only McKinsey publishes a usable feed. BCG, Bain and the IEA all
+      return 403 to automated clients: they are refusing bots, so the
+      honest route to those is their email newsletters, not a scraper.
+      Deloitte and Accenture expose no feed at all.
+
+      This is a lagging source by nature and the prompt caps it at 2 of 15
+      items, admissible only when a piece carries a real number.
+    -->
+    <outline text="Research and Advisory" title="Research and Advisory">
+      <outline type="rss" text="McKinsey Insights" title="McKinsey Insights"
+               xmlUrl="https://www.mckinsey.com/insights/rss" htmlUrl="https://www.mckinsey.com/featured-insights"/>
+    </outline>
+
     <!-- Not read by daily_brief.py. Weekly-tier reading. -->
     <outline text="Weekly" title="Weekly">
       <outline type="rss" text="Works in Progress" title="Works in Progress"

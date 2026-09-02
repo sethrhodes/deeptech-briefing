@@ -39,7 +39,7 @@ import requests
 SUPABASE_URL = "https://kcdlsaqqcgngrwreucei.supabase.co"
 
 OPML_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "deeptech-feeds.opml")
-DAILY_CATEGORIES = {"Space", "Energy", "Manufacturing and Industrial"}
+DAILY_CATEGORIES = {"Space", "Energy", "Manufacturing and Industrial", "Research and Advisory"}
 
 # 72, not 48, because of the weekend. The cron runs Mon-Fri at 13:13 UTC,
 # so Friday's run ends at Fri 13:13 and the next one is Monday. A 48h window
