@@ -175,6 +175,7 @@ button { font: inherit; color: inherit; }
 }
 .rail::-webkit-scrollbar { display: none; }
 .rail:empty { display: none; }
+body.signed-out .rail { display: none; }
 .rail-chip {
   flex: none;
   scroll-snap-align: center;
@@ -562,6 +563,111 @@ footer {
           mask-image: linear-gradient(90deg, #000 calc(100% - 2rem), transparent);
   }
 }
+/* ── Auth gate ─────────────────────────────────────────────────────────── */
+.gate-wrap { display: grid; place-items: center; min-height: 62vh; padding: 1rem 0; }
+.gate {
+  width: 100%;
+  max-width: 25rem;
+  padding: 2rem 1.85rem 1.75rem;
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  background: var(--surface-solid);
+  box-shadow: var(--shadow-rest);
+  text-align: center;
+}
+.gate-mark {
+  width: 3rem; height: 3rem;
+  margin: 0 auto 1.15rem;
+  display: grid; place-items: center;
+  border-radius: 15px;
+  color: #fff;
+  background: linear-gradient(155deg, var(--accent), color-mix(in oklab, var(--accent) 55%, #6d40c4));
+  box-shadow: 0 4px 14px color-mix(in oklab, var(--accent) 34%, transparent);
+}
+.gate-mark svg { width: 1.5rem; height: 1.5rem; }
+.gate h2 {
+  margin: 0 0 .4rem;
+  font-size: 1.375rem;
+  font-weight: 600;
+  letter-spacing: -0.018em;
+  line-height: 1.2;
+}
+.gate p {
+  margin: 0 auto;
+  max-width: 30ch;
+  font-size: .875rem;
+  line-height: 1.55;
+  color: var(--text-2);
+}
+.gate form { margin-top: 1.35rem; display: flex; flex-direction: column; gap: .55rem; }
+.gate input[type="email"] {
+  width: 100%;
+  font: inherit;
+  font-size: 1rem;              /* >=16px so iOS Safari does not zoom on focus */
+  color: var(--text);
+  text-align: center;
+  padding: .7rem .9rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  background: var(--surface-inset);
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+.gate input[type="email"]::placeholder { color: var(--text-3); }
+.gate input[type="email"]:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3.5px color-mix(in oklab, var(--accent) 22%, transparent);
+}
+.primary-btn {
+  border: 0;
+  border-radius: 12px;
+  padding: .72rem 1rem;
+  font-size: .9375rem;
+  font-weight: 600;
+  letter-spacing: -0.006em;
+  color: #fff;
+  background: var(--accent);
+  cursor: pointer;
+  transition: transform 100ms ease-out, filter 160ms ease;
+}
+.primary-btn:hover { filter: brightness(1.07); }
+.primary-btn:active { transform: scale(.975); }
+.primary-btn[disabled] { opacity: .55; cursor: default; transform: none; filter: none; }
+.gate-msg {
+  margin-top: .9rem;
+  font-size: .8125rem;
+  line-height: 1.5;
+  min-height: 1.2em;
+}
+.gate-msg[data-kind="error"] { color: #c2410c; }
+.gate-msg[data-kind="ok"]    { color: var(--c-funding); }
+@media (prefers-color-scheme: dark) {
+  .gate-msg[data-kind="error"] { color: #ff9f45; }
+}
+.gate-foot {
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+  font-size: .75rem;
+  line-height: 1.5;
+  color: var(--text-3);
+}
+.account[hidden] { display: none; }   /* author display: would beat the UA [hidden] rule */
+.account {
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  max-width: 13rem;
+}
+.account-email {
+  font-size: .75rem;
+  color: var(--text-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+@media (max-width: 34rem) { .account-email { display: none; } }
+
 @media print {
   .chrome, .filters, .rail { display: none !important; }
   .card { break-inside: avoid; box-shadow: none; }
@@ -585,6 +691,10 @@ footer {
     </div>
     <div class="chrome-actions">
       <button class="ghost-btn" id="btn-latest" type="button" hidden>Latest</button>
+      <span class="account" id="account" hidden>
+        <span class="account-email" id="account-email"></span>
+        <button class="ghost-btn" id="btn-signout" type="button">Sign out</button>
+      </span>
     </div>
   </div>
   <nav class="rail" id="rail" aria-label="Briefing dates"></nav>
@@ -599,7 +709,9 @@ footer {
   <span id="foot-status"></span>
 </footer>
 
-<script>
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4/+esm";
+
 (() => {
   "use strict";
 
@@ -608,6 +720,25 @@ footer {
   const SUPABASE_URL = "https://kcdlsaqqcgngrwreucei.supabase.co";
   const SUPABASE_ANON = "sb_publishable_CN7p9jB8uOtCE_JOsGUlYQ_1Rzqc-E5";
   const MAX_DAYS = 60;
+
+  // The only account this briefing belongs to. Enforced in three places:
+  // here (the page refuses to even request a link for another address), in
+  // Supabase Auth (signups disabled, so no other account can be created),
+  // and — the one that actually matters — in the RLS policy on both tables,
+  // which checks jwt.email server-side. The first two are convenience; the
+  // third is the guarantee, and it holds even if this file is edited.
+  const ALLOWED_EMAIL = "sethdrhodes@gmail.com";
+
+  const sb = createClient(SUPABASE_URL, SUPABASE_ANON, {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+      // Implicit, not PKCE: the magic link has to work when the mail is
+      // opened on a different device than the one that requested it.
+      flowType: "implicit",
+    },
+  });
 
   const SECTIONS = [
     { key: "problems_surfaced",      label: "Problems Surfaced",      short: "Problems",   color: "var(--c-problems)",
@@ -629,6 +760,8 @@ footer {
   const rail = $("#rail");
   const btnLatest = $("#btn-latest");
   const footStatus = $("#foot-status");
+  const account = $("#account");
+  const accountEmail = $("#account-email");
 
   // Everything rendered below originates from the database. Escape it all.
   const esc = v => String(v ?? "").replace(/[&<>"']/g, c =>
@@ -674,14 +807,16 @@ footer {
   async function load() {
     if (new URLSearchParams(location.search).has("demo")) return demoData();
 
-    const select = "id,brief_date,kind,items(id,section,headline,summary,founder_note,source_name,source_url)";
-    const url = SUPABASE_URL + "/rest/v1/briefings?select=" + encodeURIComponent(select) +
-                "&order=brief_date.desc&limit=" + MAX_DAYS;
-    const res = await fetch(url, { headers: { apikey: SUPABASE_ANON, Accept: "application/json" } });
-    if (!res.ok) throw new Error("Supabase responded " + res.status + " " + res.statusText);
+    // Reads go out with the signed-in user's access token, which is what
+    // satisfies the RLS policy. The publishable key alone returns nothing.
+    const { data: rows, error } = await sb
+      .from("briefings")
+      .select("id,brief_date,kind,items(id,section,headline,summary,founder_note,source_name,source_url)")
+      .order("brief_date", { ascending: false })
+      .limit(MAX_DAYS);
+    if (error) throw new Error(error.message);
 
-    const rows = await res.json();
-    return rows
+    return (rows || [])
       .filter(r => ISO_DATE.test(r.brief_date))
       .map(r => ({ date: r.brief_date, kind: r.kind, items: Array.isArray(r.items) ? r.items : [] }))
       .sort((a, b) => b.date.localeCompare(a.date));
@@ -927,7 +1062,117 @@ footer {
     ];
   }
 
-  boot();
+  // ── Auth gate ───────────────────────────────────────────────────────────
+  const redirectTo = () => location.origin + location.pathname;
+  const norm = e => String(e || "").trim().toLowerCase();
+
+  const ICON_MARK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 L20 12 L12 22 L4 12 Z"/></svg>';
+
+  function renderGate({ notice = "", kind = "" } = {}) {
+    document.body.classList.add("signed-out");
+    rail.innerHTML = "";
+    btnLatest.hidden = true;
+    account.hidden = true;
+    footStatus.textContent = "";
+    stage.setAttribute("aria-busy", "false");
+    stage.innerHTML =
+      '<div class="gate-wrap"><div class="gate rise">' +
+        '<div class="gate-mark" aria-hidden="true">' + ICON_MARK + '</div>' +
+        '<h2>Sign in to your brief</h2>' +
+        '<p>This archive is private. Enter your email and we\'ll send a one-time sign-in link.</p>' +
+        '<form id="gate-form" novalidate>' +
+          '<label class="sr-only" for="gate-email">Email address</label>' +
+          '<input id="gate-email" type="email" name="email" inputmode="email" autocomplete="email" ' +
+                 'spellcheck="false" placeholder="you@example.com" required>' +
+          '<button class="primary-btn" id="gate-submit" type="submit">Email me a link</button>' +
+        '</form>' +
+        '<p class="gate-msg" id="gate-msg" role="status" data-kind="' + kind + '">' + notice + '</p>' +
+        '<p class="gate-foot">Only the account this briefing belongs to can sign in. ' +
+        'Everything is enforced server-side by row-level security.</p>' +
+      '</div></div>';
+
+    const form = $("#gate-form"), input = $("#gate-email"), btn = $("#gate-submit"), msg = $("#gate-msg");
+    input.focus({ preventScroll: true });
+
+    form.addEventListener("submit", async e => {
+      e.preventDefault();
+      const email = norm(input.value);
+      msg.dataset.kind = ""; msg.textContent = "";
+
+      if (!email) { msg.dataset.kind = "error"; msg.textContent = "Enter your email address."; return; }
+      if (email !== ALLOWED_EMAIL) {
+        msg.dataset.kind = "error";
+        msg.textContent = "That address doesn't have access to this briefing.";
+        return;
+      }
+
+      btn.disabled = true; btn.textContent = "Sending…";
+      const { error } = await sb.auth.signInWithOtp({
+        email,
+        options: { shouldCreateUser: false, emailRedirectTo: redirectTo() },
+      });
+      btn.disabled = false; btn.textContent = "Email me a link";
+
+      if (error) {
+        const raw = error.message || "";
+        msg.dataset.kind = "error";
+        // Supabase returns this when the account does not exist and
+        // shouldCreateUser is false — accurate, but opaque to a reader.
+        msg.textContent = /signups? not allowed/i.test(raw)
+          ? "No account exists for this address yet. Create it once in Supabase → Authentication → Users."
+          : /rate|too many/i.test(raw)
+            ? "Too many requests. Wait a minute and try again."
+            : raw || "Could not send the link. Try again.";
+        return;
+      }
+      msg.dataset.kind = "ok";
+      msg.textContent = "Check your inbox — the link signs you in and expires shortly.";
+      input.blur();
+    });
+  }
+
+  function showAccount(email) {
+    document.body.classList.remove("signed-out");
+    account.hidden = false;
+    accountEmail.textContent = email;
+  }
+
+  $("#btn-signout").addEventListener("click", async () => {
+    await sb.auth.signOut();
+    state.days = []; state.activeDate = null;
+    if (location.hash) history.replaceState(null, "", location.pathname);
+    renderGate({ notice: "You're signed out.", kind: "ok" });
+  });
+
+  async function start() {
+    // Demo mode is a design preview and never touches the database, so it
+    // does not need — and must not require — a session.
+    if (new URLSearchParams(location.search).has("demo")) { boot(); return; }
+
+    stage.setAttribute("aria-busy", "true");
+    renderSkeleton();
+
+    const { data: { session } } = await sb.auth.getSession();
+
+    if (!session) { renderGate(); return; }
+    if (norm(session.user.email) !== ALLOWED_EMAIL) {
+      await sb.auth.signOut();
+      renderGate({ notice: "That account doesn't have access to this briefing.", kind: "error" });
+      return;
+    }
+    showAccount(session.user.email);
+    boot();
+  }
+
+  // Fires after the magic-link redirect lands and the session is restored.
+  sb.auth.onAuthStateChange((event, session) => {
+    if (event === "SIGNED_IN" && session && norm(session.user.email) === ALLOWED_EMAIL) {
+      showAccount(session.user.email);
+      boot();
+    }
+  });
+
+  start();
 })();
 </script>
 </body>
