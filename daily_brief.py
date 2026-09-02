@@ -41,7 +41,13 @@ SUPABASE_URL = "https://kcdlsaqqcgngrwreucei.supabase.co"
 OPML_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "deeptech-feeds.opml")
 DAILY_CATEGORIES = {"Space", "Energy", "Manufacturing and Industrial"}
 
-LOOKBACK_HOURS = 48
+# 72, not 48, because of the weekend. The cron runs Mon-Fri at 13:13 UTC,
+# so Friday's run ends at Fri 13:13 and the next one is Monday. A 48h window
+# would start Sat 13:13 and silently skip all of Friday's US business day --
+# the densest day of the week for funding news. 72h makes Monday's window
+# begin exactly where Friday's ended. The extra overlap on Tue-Fri is
+# harmless: the 14-day already_covered list from Supabase dedups it.
+LOOKBACK_HOURS = 72
 MAX_RAW_ITEMS = 120       # cap on how much raw material goes to the model
 SUMMARY_TRUNCATE = 400    # chars per RSS entry description, to control tokens
 
