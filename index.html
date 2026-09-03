@@ -601,6 +601,12 @@ footer {
 }
 .gate form { margin-top: 1.35rem; display: flex; flex-direction: column; gap: .55rem; }
 .gate form[hidden] { display: none; }   /* author display: beats the UA [hidden] rule */
+.gate-hint { margin: .1rem 0 0; font-size: .75rem; line-height: 1.45; color: var(--text-3); }
+.linkish {
+  border: 0; background: none; padding: 0;
+  font-size: inherit; color: var(--accent); cursor: pointer;
+  text-decoration: underline; text-underline-offset: 2px;
+}
 .gate input.code-input {
   font-variant-numeric: tabular-nums;
   font-size: 1.5rem;
@@ -1096,11 +1102,13 @@ import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js
           '<button class="primary-btn" id="gate-submit" type="submit">Email me a code</button>' +
         '</form>' +
         '<form id="gate-code-form" novalidate hidden>' +
-          '<label class="sr-only" for="gate-code">Six-digit sign-in code</label>' +
+          '<label class="sr-only" for="gate-code">Six-digit code, or the sign-in link from the email</label>' +
           '<input id="gate-code" class="code-input" type="text" inputmode="numeric" ' +
-                 'autocomplete="one-time-code" pattern="[0-9]*" maxlength="6" ' +
-                 'placeholder="000000" spellcheck="false" required>' +
+                 'autocomplete="one-time-code" spellcheck="false" ' +
+                 'autocapitalize="off" placeholder="000000" required>' +
           '<button class="primary-btn" id="gate-verify" type="submit">Verify</button>' +
+          '<p class="gate-hint">No code in the email? Copy the sign-in link and paste it here instead. ' +
+          '<button type="button" class="linkish" id="gate-reset">Start over</button></p>' +
         '</form>' +
         '<p class="gate-msg" id="gate-msg" role="status" data-kind="' + kind + '">' + notice + '</p>' +
         '<p class="gate-foot">Only the account this briefing belongs to can sign in. ' +
@@ -1109,8 +1117,48 @@ import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 
     const form = $("#gate-form"), input = $("#gate-email"), btn = $("#gate-submit"), msg = $("#gate-msg");
     const codeForm = $("#gate-code-form"), codeInput = $("#gate-code"), codeBtn = $("#gate-verify");
-    let pendingEmail = "";
-    input.focus({ preventScroll: true });
+    // iOS can reload a Home Screen app when you switch to Mail and back.
+    // Without this, returning from the inbox would land on an empty form
+    // with the requested address forgotten, forcing another email against
+    // a 2/hour cap. Remember it briefly and come back to the code step.
+    const PENDING_KEY = "deeptech.pending-signin";
+    const PENDING_TTL = 30 * 60 * 1000;
+    const readPending = () => {
+      try {
+        const v = JSON.parse(localStorage.getItem(PENDING_KEY) || "null");
+        return (v && v.email === ALLOWED_EMAIL && Date.now() - v.ts < PENDING_TTL) ? v.email : "";
+      } catch { return ""; }
+    };
+    const writePending = email => {
+      try { localStorage.setItem(PENDING_KEY, JSON.stringify({ email, ts: Date.now() })); } catch {}
+    };
+    const clearPending = () => { try { localStorage.removeItem(PENDING_KEY); } catch {} };
+
+    let pendingEmail = readPending();
+
+    if (pendingEmail) {
+      form.hidden = true;
+      codeForm.hidden = false;
+      msg.dataset.kind = "ok";
+      msg.textContent = "Enter the six-digit code from your email, or paste the sign-in link.";
+      codeInput.focus({ preventScroll: true });
+    } else {
+      input.focus({ preventScroll: true });
+    }
+
+    $("#gate-reset").addEventListener("click", () => {
+      clearPending();
+      pendingEmail = "";
+      codeInput.value = "";
+      codeForm.hidden = true;
+      form.hidden = false;
+      msg.dataset.kind = ""; msg.textContent = "";
+      input.focus({ preventScroll: true });
+    });
+
+    codeInput.addEventListener("input", () => {
+      codeInput.classList.toggle("code-input", codeInput.value.trim().length <= 8);
+    });
 
     // Verifying a typed code keeps the whole exchange inside this browser.
     // A magic link cannot: on iOS a Home Screen app has its own storage
@@ -1118,15 +1166,42 @@ import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js
     // instead of here. The code has no such problem.
     codeForm.addEventListener("submit", async e => {
       e.preventDefault();
-      const token = codeInput.value.replace(/\D/g, "");
+      const raw = codeInput.value.trim();
+      const digits = raw.replace(/\D/g, "");
       msg.dataset.kind = ""; msg.textContent = "";
-      if (token.length !== 6) {
+
+      // The field takes either a six-digit code or the sign-in link pasted
+      // whole. The link route exists because Supabase's default Magic Link
+      // template ships only {{ .ConfirmationURL }} and no {{ .Token }}, so
+      // there may be no code in the email at all. Both verify in-place,
+      // which is the whole point on iOS: nothing leaves this container.
+      let args = null;
+      if (/^https?:\/\//i.test(raw)) {
+        try {
+          const u = new URL(raw);
+          const hash = u.searchParams.get("token_hash") || u.searchParams.get("token");
+          if (hash) args = { token_hash: hash, type: u.searchParams.get("type") || "magiclink" };
+        } catch { /* falls through to the error below */ }
+        if (!args) {
+          msg.dataset.kind = "error";
+          msg.textContent = "That link has no sign-in token in it. Copy the link the email points to.";
+          return;
+        }
+      } else if (digits.length === 6) {
+        if (!pendingEmail) {
+          msg.dataset.kind = "error";
+          msg.textContent = "Request a new code first — this one can't be matched to an address.";
+          return;
+        }
+        args = { email: pendingEmail, token: digits, type: "email" };
+      } else {
         msg.dataset.kind = "error";
-        msg.textContent = "Enter the six digits from the email.";
+        msg.textContent = "Enter the six digits, or paste the sign-in link from the email.";
         return;
       }
+
       codeBtn.disabled = true; codeBtn.textContent = "Verifying…";
-      const { error } = await sb.auth.verifyOtp({ email: pendingEmail, token, type: "email" });
+      const { error } = await sb.auth.verifyOtp(args);
       codeBtn.disabled = false; codeBtn.textContent = "Verify";
       if (error) {
         msg.dataset.kind = "error";
@@ -1135,6 +1210,7 @@ import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js
           : (error.message || "Could not verify that code.");
         return;
       }
+      clearPending();
       // Success lands in onAuthStateChange, which renders the brief.
     });
 
@@ -1173,8 +1249,9 @@ import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js
         return;
       }
       pendingEmail = email;
+      writePending(email);
       msg.dataset.kind = "ok";
-      msg.textContent = "Check your inbox and enter the six-digit code. The link in the same email also works on desktop.";
+      msg.textContent = "Check your inbox. Enter the six-digit code, or paste the sign-in link if the email has no code.";
       form.hidden = true;
       codeForm.hidden = false;
       input.blur();
@@ -1190,6 +1267,7 @@ import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 
   $("#btn-signout").addEventListener("click", async () => {
     await sb.auth.signOut();
+    try { localStorage.removeItem("deeptech.pending-signin"); } catch {}
     state.days = []; state.activeDate = null;
     if (location.hash) history.replaceState(null, "", location.pathname);
     renderGate({ notice: "You're signed out.", kind: "ok" });
