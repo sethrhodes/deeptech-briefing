@@ -603,6 +603,18 @@ footer {
 }
 .gate form { margin-top: 1.35rem; display: flex; flex-direction: column; gap: .55rem; }
 .gate form[hidden] { display: none; }   /* author display: beats the UA [hidden] rule */
+.gate-callout {
+  margin: 1.1rem 0 0;
+  padding: .75rem .85rem;
+  border-radius: 12px;
+  text-align: left;
+  font-size: .8125rem;
+  line-height: 1.5;
+  color: var(--text);
+  background: color-mix(in oklab, var(--c-problems) 12%, transparent);
+  border-left: 2.5px solid var(--c-problems);
+}
+.gate-callout strong { font-weight: 600; }
 .gate-hint { margin: .1rem 0 0; font-size: .75rem; line-height: 1.45; color: var(--text-3); }
 .linkish {
   border: 0; background: none; padding: 0;
@@ -1095,6 +1107,10 @@ import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 
   const ICON_MARK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 L20 12 L12 22 L4 12 Z"/></svg>';
 
+  const isStandalone = () =>
+    window.navigator.standalone === true ||
+    (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches);
+
   function renderGate({ notice = "", kind = "" } = {}) {
     document.body.classList.add("signed-out");
     rail.innerHTML = "";
@@ -1107,6 +1123,12 @@ import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js
         '<div class="gate-mark" aria-hidden="true">' + ICON_MARK + '</div>' +
         '<h2>Sign in to your brief</h2>' +
         '<p>This archive is private. Enter your email and we\'ll send a one-time code.</p>' +
+        (isStandalone()
+          ? '<div class="gate-callout"><strong>Don\'t tap the link in the email.</strong> ' +
+            'This is a Home Screen app, so a tapped link opens Safari and signs you in ' +
+            'there instead \u2014 and the link is then spent. Press and hold it, choose ' +
+            '<strong>Copy Link</strong>, and paste it below.</div>'
+          : "") +
         '<form id="gate-form" novalidate>' +
           '<label class="sr-only" for="gate-email">Email address</label>' +
           '<input id="gate-email" type="email" name="email" inputmode="email" autocomplete="email" ' +
@@ -1263,7 +1285,9 @@ import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js
       pendingEmail = email;
       writePending(email);
       msg.dataset.kind = "ok";
-      msg.textContent = "Check your inbox. Enter the six-digit code, or paste the sign-in link if the email has no code.";
+      msg.textContent = isStandalone()
+        ? "Check your inbox. Press and hold the link, choose Copy Link, and paste it below — don't tap it."
+        : "Check your inbox. Enter the six-digit code, or paste the sign-in link if the email has no code.";
       form.hidden = true;
       codeForm.hidden = false;
       input.blur();
