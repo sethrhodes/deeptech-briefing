@@ -26,11 +26,15 @@ Expects deeptech-feeds.opml in the same directory.
 """
 
 import datetime as dt
+import email as email_pkg
 import html
+import imaplib
 import json
 import os
 import re
 import sys
+from email.header import decode_header, make_header
+from email.utils import parsedate_to_datetime, parseaddr
 import xml.etree.ElementTree as ET
 
 import feedparser
@@ -53,6 +57,15 @@ DAILY_CATEGORIES = {"Space", "Energy", "Manufacturing and Industrial",
 LOOKBACK_HOURS = 72
 MAX_RAW_ITEMS = 120       # cap on how much raw material goes to the model
 SUMMARY_TRUNCATE = 400    # chars per RSS entry description, to control tokens
+
+# Newsletter ingestion. Opt-in: without GMAIL_APP_PASSWORD in the environment
+# the gather step skips this entirely and behaves exactly as it did before.
+IMAP_HOST = "imap.gmail.com"
+GMAIL_USER = os.environ.get("GMAIL_USER", "sethnewsmail@gmail.com")
+MAX_EMAIL_ITEMS = 25
+# Funding digests list many opportunities in one message, so 400 chars would
+# clip mid-list. These get a larger budget than an article summary.
+EMAIL_SUMMARY_TRUNCATE = 1200
 
 VALID_SECTIONS = {
     "problems_surfaced", "funding_signals", "technical_breakthroughs",
@@ -134,6 +147,117 @@ def fetch_rss_items(feed_urls, since):
 # data.oppHits — see the setup guide, Step 2, for the confirmed request
 # shape. The field names inside each hit weren't verified from this
 # environment, so check them against a live response before trusting them.
+
+# ---- Gather: newsletter email ------------------------------------------------
+
+# Links worth keeping point at an opportunity. These do not.
+_URL_RE = re.compile(r"https?://[^\s<>\"'\)\]]+")
+_URL_SKIP = re.compile(
+    r"unsubscribe|list-manage|optout|opt-out|/preferences|mailchi|sendgrid|"
+    r"click\.|/track|utm_|twitter\.com|x\.com|facebook\.com|linkedin\.com|"
+    r"instagram\.com|youtube\.com|\.(png|jpe?g|gif|css|js)(\?|$)",
+    re.I,
+)
+
+
+def _decode_header(value):
+    if not value:
+        return ""
+    try:
+        return str(make_header(decode_header(value)))
+    except Exception:
+        return str(value)
+
+
+def _raw_body(msg):
+    """Best-effort raw body text, preferring text/plain over text/html."""
+    plain, rich = [], []
+    parts = msg.walk() if msg.is_multipart() else [msg]
+    for part in parts:
+        if part.get_content_maintype() == "multipart" or part.get_filename():
+            continue
+        ctype = part.get_content_type()
+        if ctype not in ("text/plain", "text/html"):
+            continue
+        try:
+            payload = part.get_payload(decode=True) or b""
+        except Exception:
+            continue
+        charset = part.get_content_charset() or "utf-8"
+        try:
+            text = payload.decode(charset, errors="replace")
+        except (LookupError, UnicodeDecodeError):
+            text = payload.decode("utf-8", errors="replace")
+        (plain if ctype == "text/plain" else rich).append(text)
+    return "\n".join(plain or rich)
+
+
+def first_link(raw_body):
+    """First URL in the body that is not tracking, social, or an unsubscribe."""
+    for match in _URL_RE.finditer(raw_body or ""):
+        url = match.group(0).rstrip(".,);:'\"")
+        if _URL_SKIP.search(url):
+            continue
+        return url
+    return ""
+
+
+def email_item(msg, since):
+    """Shape one message like an RSS entry, or None if it is out of window."""
+    published_dt = None
+    try:
+        published_dt = parsedate_to_datetime(msg.get("Date"))
+        if published_dt is not None and published_dt.tzinfo is None:
+            published_dt = published_dt.replace(tzinfo=dt.timezone.utc)
+    except Exception:
+        published_dt = None
+    # IMAP SINCE has day granularity, so re-check against the real window.
+    if published_dt is not None and published_dt < since:
+        return None
+
+    sender_name, sender_addr = parseaddr(msg.get("From") or "")
+    sender = _decode_header(sender_name) or sender_addr or "unknown sender"
+    raw = _raw_body(msg)
+    return {
+        "source": f"Inbox: {sender}",
+        "title": _decode_header(msg.get("Subject")) or "(no subject)",
+        "link": first_link(raw),
+        "summary": clean_summary(raw)[:EMAIL_SUMMARY_TRUNCATE],
+        "published": published_dt.isoformat() if published_dt else None,
+    }
+
+
+def fetch_email_items(since, user, password, host=IMAP_HOST, limit=MAX_EMAIL_ITEMS):
+    """Read recent newsletter mail over IMAP.
+
+    The mailbox is opened readonly, so nothing here can alter or delete mail
+    even though an app password would technically permit it.
+    """
+    items = []
+    try:
+        conn = imaplib.IMAP4_SSL(host, timeout=30)
+    except TypeError:  # older imaplib has no timeout kwarg
+        conn = imaplib.IMAP4_SSL(host)
+    try:
+        conn.login(user, password)
+        conn.select("INBOX", readonly=True)
+        typ, data = conn.search(None, "SINCE", since.strftime("%d-%b-%Y"))
+        if typ != "OK" or not data or not data[0]:
+            return items
+        for msg_id in reversed(data[0].split()[-limit:]):
+            typ, payload = conn.fetch(msg_id, "(RFC822)")
+            if typ != "OK" or not payload or not payload[0]:
+                continue
+            item = email_item(email_pkg.message_from_bytes(payload[0][1]), since)
+            if item and item["summary"]:
+                items.append(item)
+    finally:
+        try:
+            conn.logout()
+        except Exception:
+            pass
+    return items
+
 
 # ---- Supabase ---------------------------------------------------------------
 
@@ -231,6 +355,21 @@ def cmd_gather(args):
     print(f"  {len(rss_items)} entries in the last {LOOKBACK_HOURS}h", file=sys.stderr)
 
     raw_items = rss_items[:MAX_RAW_ITEMS]
+
+    # Email is appended after the RSS cap so a busy news day can never crowd
+    # out a funding deadline, which is the whole reason it is ingested.
+    app_password = os.environ.get("GMAIL_APP_PASSWORD")
+    if app_password:
+        print("Fetching newsletter email...", file=sys.stderr)
+        try:
+            email_items = fetch_email_items(since, GMAIL_USER, app_password)
+            print(f"  {len(email_items)} messages in the last {LOOKBACK_HOURS}h", file=sys.stderr)
+            raw_items += email_items
+        except Exception as e:
+            # A mail outage must not cost us the RSS brief.
+            print(f"  ! email: {type(e).__name__}: {e}", file=sys.stderr)
+    else:
+        print("  (GMAIL_APP_PASSWORD unset, skipping email)", file=sys.stderr)
 
     supabase_key = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
     print("Checking Supabase for recently covered headlines...", file=sys.stderr)

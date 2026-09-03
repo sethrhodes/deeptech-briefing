@@ -29,6 +29,8 @@ jobs:
         run: python daily_brief.py gather --out brief_input.json
         env:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          # Optional. Absent, the gather step just skips email.
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
 
       # Step 2: synthesize. This is Claude Code itself, authenticated with
       # CLAUDE_CODE_OAUTH_TOKEN -- draws from your Claude subscription's
@@ -71,6 +73,11 @@ jobs:
             - If nothing in raw_items is worth including, write an empty
               array -- do not force items in to fill it out.
             - Write ONLY the JSON array to the file. No other output needed.
+            - Items whose source_name starts with "Inbox:" came from newsletter
+              email, not a web page. They may legitimately have no URL: use the
+              link if the message contained one, otherwise omit source_url
+              rather than inventing one. For a funding opportunity always name
+              the agency, the dollar figure if stated, and the close date.
             - At most 2 of the 15 items may come from research or advisory
               sources (McKinsey and similar). Admit one only when it carries a
               specific number, survey finding, or dataset you can quote. Never
