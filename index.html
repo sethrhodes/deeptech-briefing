@@ -26,6 +26,7 @@
   --shadow-rest:   0 1px 2px rgba(0,0,0,.04), 0 6px 20px rgba(0,0,0,.05);
   --shadow-lift:   0 2px 4px rgba(0,0,0,.05), 0 14px 36px rgba(0,0,0,.09);
 
+  --c-information: #7c3aed;
   --c-problems:    #c2410c;
   --c-funding:     #1a7f37;
   --c-tech:        #0058c9;
@@ -54,6 +55,7 @@
     --shadow-rest:   0 1px 2px rgba(0,0,0,.5), 0 6px 20px rgba(0,0,0,.4);
     --shadow-lift:   0 2px 6px rgba(0,0,0,.55), 0 16px 40px rgba(0,0,0,.55);
 
+    --c-information: #c4a4ff;
     --c-problems:    #ff9f45;
     --c-funding:     #4ede80;
     --c-tech:        #64b1ff;
@@ -756,6 +758,8 @@ import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js
   });
 
   const SECTIONS = [
+    { key: "the_information",        label: "The Information",        short: "The Information", color: "var(--c-information)",
+      blurb: "Every issue, summarized in full \u2014 never cut for space." },
     { key: "problems_surfaced",      label: "Problems Surfaced",      short: "Problems",   color: "var(--c-problems)",
       blurb: "Specific technical or operational pain someone stated out loud." },
     { key: "funding_signals",        label: "Funding Signals",        short: "Funding",    color: "var(--c-funding)",
@@ -892,7 +896,7 @@ import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js
       ? "This briefing ran but surfaced nothing worth your attention. That is a legitimate result, not a failure."
       : total + (total === 1 ? " item" : " items") + " across " +
         lead.length + (lead.length === 1 ? " section" : " sections") + ", led by " +
-        lead[0].label.replace("&amp;", "&").toLowerCase() + ".";
+        lead[0].label.replace("&amp;", "&") + ".";   // not lowercased: "The Information" is a name
 
     return '<section class="hero rise">' +
       '<p class="hero-eyebrow">' + (rel ? esc(rel) + " &middot; " : "") + esc(fmtLong(day.date)) + '</p>' +
@@ -1038,6 +1042,14 @@ import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js
     const day = d => { const t = new Date(); t.setDate(t.getDate() - d); return t.toISOString().slice(0, 10); };
     return [
       { date: day(0), kind: "daily", items: [
+        mk("the_information", "Anduril's Arsenal-1 hit 40% of its hiring plan six months in",
+           "Internal figures put headcount at 340 against a 850-person target for the Ohio plant, with machinists and controls engineers the hardest roles to fill.",
+           "The constraint is trained machinists, not capital \u2014 a training pipeline sold to defense manufacturers is a business.",
+           "Inbox: The Information", "https://example.com/ti1"),
+        mk("the_information", "SoftBank pushed portfolio companies toward a shared silicon supplier",
+           "Three founders describe pressure to consolidate onto one fab partner ahead of a planned joint procurement vehicle.",
+           "Shared procurement across small hardware companies is a real unmet need below the SoftBank tier.",
+           "Inbox: The Information", "https://example.com/ti2"),
         mk("problems_surfaced", "Constellation operators say reaction wheels are the bottleneck, not launch",
            "Three smallsat operators put wheel bearing life at 4–6 years against 7-year design lives, and named it the dominant driver of early deorbit.",
            "A qualified, life-tested reaction wheel at commercial volume is a hardware company with a captive customer list.",

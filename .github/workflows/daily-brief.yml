@@ -41,11 +41,28 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt: |
-            Read brief_input.json in the repo root. It has two fields:
-            "raw_items" (RSS entries: source, title, link, summary, published)
+            Read brief_input.json in the repo root. It has three fields:
+            "raw_items" (RSS entries and ordinary newsletter mail: source,
+            title, link, summary, published), "priority_items" (see below),
             and "already_covered" (headlines from the last 14 days -- skip
             anything materially similar to these unless there's a real
             update: a new number, a reversal, a new party involved).
+
+            PRIORITY ITEMS -- handle these first and never drop one.
+            "priority_items" holds issues from The Information, which the
+            reader considers essential. For EVERY entry in that list, without
+            exception, emit exactly one output item:
+              - section: "the_information"
+              - headline: the specific claim the issue leads with -- the
+                reporting, not the newsletter's title or subject line
+              - summary: 2-4 sentences covering what was actually reported.
+                These get more room than other items because they matter more.
+              - founder_note: as for any other item
+              - source_url: the entry's "link" if it has one, else omit
+            These are exempt from the "already_covered" check: each issue is a
+            distinct dispatch, not a repeat. They do NOT count against the
+            15-item maximum below. If priority_items is empty, skip this part
+            entirely -- never invent one.
 
             You are producing a daily deep-tech opportunity brief for a
             mechanical engineer starting a Management Science & Engineering
@@ -54,8 +71,9 @@ jobs:
 
             Write brief_output.json in the repo root: a JSON array of items,
             each with these exact fields:
-              section: one of "problems_surfaced", "funding_signals",
-                "technical_breakthroughs", "regulatory_shifts", "hiring_failures"
+              section: one of "the_information", "problems_surfaced",
+                "funding_signals", "technical_breakthroughs",
+                "regulatory_shifts", "hiring_failures"
               headline: short, specific, names the actual company/agency/number
               summary: 1-3 sentences, your own words, no fluff
               founder_note: one sentence -- why this could be a company, or
@@ -67,7 +85,9 @@ jobs:
                 it has none.
 
             Rules:
-            - Maximum 15 items total. Cut the weakest before padding.
+            - Maximum 15 items total from "raw_items". Cut the weakest before
+              padding. Items from "priority_items" are additional to this and
+              are never cut.
             - Every item needs a specific claim: a number, a name, a
               technical detail. No "X is exploring Y" vagueness.
             - If nothing in raw_items is worth including, write an empty

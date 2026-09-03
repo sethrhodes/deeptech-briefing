@@ -72,9 +72,19 @@ MAX_EMAIL_ITEMS = 25
 EMAIL_SUMMARY_TRUNCATE = 3000
 
 VALID_SECTIONS = {
+    "the_information",
     "problems_surfaced", "funding_signals", "technical_breakthroughs",
     "regulatory_shifts", "hiring_failures",
 }
+
+# Mail from these senders is mandatory: every issue gets its own item, in its
+# own section, exempt from the 15-item cap and from dedup. They are handed to
+# the model in a separate list rather than mixed into raw_items, so "cover all
+# of these" is a rule about a list rather than a flag to notice on one entry
+# among a hundred.
+PRIORITY_SECTION = "the_information"
+PRIORITY_SENDER_DOMAINS = ("theinformation.com",)
+PRIORITY_SENDER_NAMES = ("the information",)
 
 # ---- Gather: RSS ------------------------------------------------------------
 
@@ -164,6 +174,14 @@ _URL_SKIP = re.compile(
 )
 
 
+def is_priority_sender(display_name, address):
+    """True for senders whose every issue must appear in the brief."""
+    domain = (address or "").rsplit("@", 1)[-1].strip().lower()
+    if domain and any(domain == d or domain.endswith("." + d) for d in PRIORITY_SENDER_DOMAINS):
+        return True
+    return (display_name or "").strip().lower().startswith(PRIORITY_SENDER_NAMES)
+
+
 def _decode_header(value):
     if not value:
         return ""
@@ -220,9 +238,11 @@ def email_item(msg, since):
         return None
 
     sender_name, sender_addr = parseaddr(msg.get("From") or "")
-    sender = _decode_header(sender_name) or sender_addr or "unknown sender"
+    sender_name = _decode_header(sender_name)
+    sender = sender_name or sender_addr or "unknown sender"
     raw = _raw_body(msg)
     return {
+        "priority": is_priority_sender(sender_name, sender_addr),
         "source": f"Inbox: {sender}",
         "title": _decode_header(msg.get("Subject")) or "(no subject)",
         "link": first_link(raw),
@@ -359,6 +379,7 @@ def cmd_gather(args):
     print(f"  {len(rss_items)} entries in the last {LOOKBACK_HOURS}h", file=sys.stderr)
 
     raw_items = rss_items[:MAX_RAW_ITEMS]
+    priority_items = []
 
     # Email is appended after the RSS cap so a busy news day can never crowd
     # out a funding deadline, which is the whole reason it is ingested.
@@ -367,8 +388,10 @@ def cmd_gather(args):
         print("Fetching newsletter email...", file=sys.stderr)
         try:
             email_items = fetch_email_items(since, GMAIL_USER, app_password)
-            print(f"  {len(email_items)} messages in the last {LOOKBACK_HOURS}h", file=sys.stderr)
-            raw_items += email_items
+            for item in email_items:
+                (priority_items if item.pop("priority", False) else raw_items).append(item)
+            print(f"  {len(email_items)} messages in the last {LOOKBACK_HOURS}h "
+                  f"({len(priority_items)} priority)", file=sys.stderr)
         except Exception as e:
             # A mail outage must not cost us the RSS brief.
             print(f"  ! email: {type(e).__name__}: {e}", file=sys.stderr)
@@ -380,7 +403,11 @@ def cmd_gather(args):
     covered = recent_headlines(supabase_key)
     print(f"  {len(covered)} headlines from the last 14 days", file=sys.stderr)
 
-    payload = {"raw_items": raw_items, "already_covered": covered}
+    payload = {
+        "raw_items": raw_items,
+        "priority_items": priority_items,
+        "already_covered": covered,
+    }
     output = json.dumps(payload, indent=2)
 
     if args.out:
