@@ -629,6 +629,7 @@ footer {
   text-indent: .38em;      /* re-centre: tracking adds a trailing gap */
   padding: .6rem .5rem;
 }
+.gate input[type="password"],
 .gate input[type="email"] {
   width: 100%;
   font: inherit;
@@ -641,7 +642,9 @@ footer {
   background: var(--surface-inset);
   transition: border-color 160ms ease, box-shadow 160ms ease;
 }
-.gate input[type="email"]::placeholder { color: var(--text-3); }
+.gate input::placeholder { color: var(--text-3); }
+.gate input[readonly] { color: var(--text-3); }
+.gate input[type="password"]:focus,
 .gate input[type="email"]:focus {
   outline: none;
   border-color: var(--accent);
@@ -722,6 +725,7 @@ footer {
       <button class="ghost-btn" id="btn-latest" type="button" hidden>Latest</button>
       <span class="account" id="account" hidden>
         <span class="account-email" id="account-email"></span>
+        <button class="ghost-btn" id="btn-setpw" type="button">Set password</button>
         <button class="ghost-btn" id="btn-signout" type="button">Sign out</button>
       </span>
     </div>
@@ -1122,7 +1126,7 @@ import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js
       '<div class="gate-wrap"><div class="gate rise">' +
         '<div class="gate-mark" aria-hidden="true">' + ICON_MARK + '</div>' +
         '<h2>Sign in to your brief</h2>' +
-        '<p>This archive is private. Enter your email and we\'ll send a one-time code.</p>' +
+        '<p id="gate-lede">This archive is private. Enter your email and we\'ll send a one-time code.</p>' +
         (isStandalone()
           ? '<div class="gate-callout"><strong>Don\'t tap the link in the email.</strong> ' +
             'This is a Home Screen app, so a tapped link opens Safari and signs you in ' +
@@ -1144,7 +1148,19 @@ import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js
           '<p class="gate-hint">No code in the email? Copy the sign-in link and paste it here instead. ' +
           '<button type="button" class="linkish" id="gate-reset">Start over</button></p>' +
         '</form>' +
+        '<form id="gate-pw-form" novalidate hidden>' +
+          '<label class="sr-only" for="gate-pw-email">Email address</label>' +
+          '<input id="gate-pw-email" type="email" autocomplete="username" ' +
+                 'value="' + ALLOWED_EMAIL + '" readonly>' +
+          '<label class="sr-only" for="gate-pw">Password</label>' +
+          '<input id="gate-pw" type="password" autocomplete="current-password" ' +
+                 'placeholder="Password" required>' +
+          '<button class="primary-btn" id="gate-pw-submit" type="submit">Sign in</button>' +
+        '</form>' +
         '<p class="gate-msg" id="gate-msg" role="status" data-kind="' + kind + '">' + notice + '</p>' +
+        '<p class="gate-hint" id="gate-switch">' +
+          '<button type="button" class="linkish" id="gate-use-pw">Use a password instead</button>' +
+        '</p>' +
         '<p class="gate-foot">Only the account this briefing belongs to can sign in. ' +
         'Everything is enforced server-side by row-level security.</p>' +
       '</div></div>';
@@ -1188,6 +1204,54 @@ import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js
       form.hidden = false;
       msg.dataset.kind = ""; msg.textContent = "";
       input.focus({ preventScroll: true });
+    });
+
+    const pwForm = $("#gate-pw-form"), pwInput = $("#gate-pw"), pwBtn = $("#gate-pw-submit");
+    const switchRow = $("#gate-switch");
+
+    // Password sign-in exists because magic links are unusable in iOS Mail:
+    // long-pressing a link renders a preview, and for a single-use /verify URL
+    // that preview spends the token before "Copy Link" is even offered.
+    function showPasswordForm(on) {
+      form.hidden = on;
+      codeForm.hidden = true;
+      pwForm.hidden = !on;
+      msg.dataset.kind = ""; msg.textContent = "";
+      const lede = $("#gate-lede");
+      if (lede) {
+        lede.textContent = on
+          ? "Sign in with the password you set. No email involved."
+          : "This archive is private. Enter your email and we'll send a one-time code.";
+      }
+      switchRow.innerHTML = on
+        ? '<button type="button" class="linkish" id="gate-use-code">Email me a code instead</button>'
+        : '<button type="button" class="linkish" id="gate-use-pw">Use a password instead</button>';
+      (on ? pwInput : input).focus({ preventScroll: true });
+    }
+
+    switchRow.addEventListener("click", e => {
+      if (e.target.id === "gate-use-pw") showPasswordForm(true);
+      if (e.target.id === "gate-use-code") { clearPending(); showPasswordForm(false); }
+    });
+
+    pwForm.addEventListener("submit", async e => {
+      e.preventDefault();
+      const password = pwInput.value;
+      msg.dataset.kind = ""; msg.textContent = "";
+      if (!password) {
+        msg.dataset.kind = "error"; msg.textContent = "Enter your password.";
+        return;
+      }
+      pwBtn.disabled = true; pwBtn.textContent = "Signing in…";
+      const { error } = await sb.auth.signInWithPassword({ email: ALLOWED_EMAIL, password });
+      pwBtn.disabled = false; pwBtn.textContent = "Sign in";
+      if (error) {
+        msg.dataset.kind = "error";
+        msg.textContent = /invalid login/i.test(error.message || "")
+          ? "Wrong password. If you haven't set one yet, sign in on your computer and use \u201cSet password\u201d there."
+          : (error.message || "Could not sign in.");
+      }
+      // Success is handled by onAuthStateChange.
     });
 
     codeInput.addEventListener("input", () => {
@@ -1308,6 +1372,46 @@ import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js
     account.hidden = false;
     accountEmail.textContent = email;
   }
+
+  $("#btn-setpw").addEventListener("click", () => {
+    stage.innerHTML =
+      '<div class="gate-wrap"><div class="gate rise">' +
+        '<h2>Set a password</h2>' +
+        '<p>Then you can sign in on any device without waiting for an email. ' +
+        'Use your password manager so it is saved and offered on your phone.</p>' +
+        '<form id="setpw-form" novalidate>' +
+          '<input type="email" autocomplete="username" value="' + ALLOWED_EMAIL + '" readonly>' +
+          '<label class="sr-only" for="setpw">New password</label>' +
+          '<input id="setpw" type="password" autocomplete="new-password" ' +
+                 'placeholder="New password (8+ characters)" required>' +
+          '<button class="primary-btn" type="submit" id="setpw-submit">Save password</button>' +
+        '</form>' +
+        '<p class="gate-msg" id="setpw-msg" role="status"></p>' +
+        '<p class="gate-hint"><button type="button" class="linkish" id="setpw-cancel">Back to the brief</button></p>' +
+      '</div></div>';
+
+    const f = $("#setpw-form"), pw = $("#setpw"), btn = $("#setpw-submit"), m = $("#setpw-msg");
+    pw.focus({ preventScroll: true });
+    $("#setpw-cancel").addEventListener("click", render);
+    f.addEventListener("submit", async e => {
+      e.preventDefault();
+      m.dataset.kind = ""; m.textContent = "";
+      if (pw.value.length < 8) {
+        m.dataset.kind = "error"; m.textContent = "Use at least 8 characters.";
+        return;
+      }
+      btn.disabled = true; btn.textContent = "Saving…";
+      const { error } = await sb.auth.updateUser({ password: pw.value });
+      btn.disabled = false; btn.textContent = "Save password";
+      if (error) {
+        m.dataset.kind = "error"; m.textContent = error.message || "Could not save the password.";
+        return;
+      }
+      m.dataset.kind = "ok";
+      m.textContent = "Saved. Sign in with it on your phone — no email needed.";
+      pw.value = "";
+    });
+  });
 
   $("#btn-signout").addEventListener("click", async () => {
     await sb.auth.signOut();
