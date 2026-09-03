@@ -1238,10 +1238,18 @@ import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js
       const { error } = await sb.auth.verifyOtp(args);
       codeBtn.disabled = false; codeBtn.textContent = "Verify";
       if (error) {
+        const why = error.message || "";
+        const pastedLink = /^https?:\/\//i.test(raw);
         msg.dataset.kind = "error";
-        msg.textContent = /expired|invalid|not found/i.test(error.message || "")
-          ? "That code is wrong or has expired. Request a new one."
-          : (error.message || "Could not verify that code.");
+        // "One-time token not found" almost always means the link was opened
+        // before it was pasted, which spends it. Say that, rather than
+        // implying the paste itself was wrong.
+        msg.textContent =
+          /not found|expired|invalid/i.test(why)
+            ? (pastedLink
+                ? "That link was already opened, which uses it up. Request a new code and copy the link WITHOUT tapping it."
+                : "That code is wrong or has expired. Request a new one.")
+            : (why || "Could not verify that code.");
         return;
       }
       clearPending();
