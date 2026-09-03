@@ -167,8 +167,11 @@ def fetch_rss_items(feed_urls, since):
 # Links worth keeping point at an opportunity. These do not.
 _URL_RE = re.compile(r"https?://[^\s<>\"'\)\]]+")
 _URL_SKIP = re.compile(
-    r"unsubscribe|list-manage|optout|opt-out|/preferences|mailchi|sendgrid|"
-    r"click\.|/track|utm_|twitter\.com|x\.com|facebook\.com|linkedin\.com|"
+    # Note: no "utm_" here. utm parameters mark an ordinary article link that
+    # happens to carry campaign tracking -- excluding them threw away almost
+    # every real link a newsletter contains.
+    r"unsubscribe|list-manage|optout|opt-out|/preferences|mailchi\.mp|"
+    r"/track/|twitter\.com|x\.com|facebook\.com|linkedin\.com|"
     r"instagram\.com|youtube\.com|\.(png|jpe?g|gif|css|js)(\?|$)",
     re.I,
 )
@@ -191,8 +194,8 @@ def _decode_header(value):
         return str(value)
 
 
-def _raw_body(msg):
-    """Best-effort raw body text, preferring text/plain over text/html."""
+def _body_parts(msg):
+    """(plain, rich) decoded text parts of a message."""
     plain, rich = [], []
     parts = msg.walk() if msg.is_multipart() else [msg]
     for part in parts:
@@ -211,17 +214,77 @@ def _raw_body(msg):
         except (LookupError, UnicodeDecodeError):
             text = payload.decode("utf-8", errors="replace")
         (plain if ctype == "text/plain" else rich).append(text)
+    return plain, rich
+
+
+def _raw_body(msg):
+    """Body text for summarising: prefer text/plain, it reads better."""
+    plain, rich = _body_parts(msg)
     return "\n".join(plain or rich)
 
 
-def first_link(raw_body):
-    """First URL in the body that is not tracking, social, or an unsubscribe."""
+def _link_source(msg):
+    """Every text part, for link extraction.
+
+    Deliberately not _raw_body. Newsletters routinely ship a thin text/plain
+    part ("view this in your browser") while every article link lives only in
+    the HTML alternative, so preferring plain text found no links at all.
+    """
+    plain, rich = _body_parts(msg)
+    return "\n".join(plain + rich)
+
+
+_REDIRECTOR_RE = re.compile(r"/ls/click|/click\?|/c/|url\d+\.|links?\.|email\.", re.I)
+
+
+def resolve_link(url, timeout=6):
+    """Follow a click-tracking redirect to the article it points at.
+
+    A tracking URL is recipient-specific and outlives nothing; the article URL
+    behind it is stable and readable. Failure is uninteresting -- keep the
+    original, which still works when clicked.
+    """
+    if not url or not _REDIRECTOR_RE.search(url):
+        return url
+    headers = {"User-Agent": "Mozilla/5.0 (compatible; deeptech-brief/1.0)"}
+    for send in ("head", "get"):
+        try:
+            resp = getattr(requests, send)(
+                url, allow_redirects=True, timeout=timeout, headers=headers,
+                **({"stream": True} if send == "get" else {}),
+            )
+            final = resp.url
+            if send == "get":
+                resp.close()
+            if final and final != url:
+                return final
+        except Exception:
+            continue
+    return url
+
+
+def first_link(raw_body, prefer_domain=""):
+    """Best URL in the body: not an unsubscribe, social or asset link.
+
+    Prefers one on the sender's own domain, which for a newsletter is the
+    article rather than a sponsor or a footer link.
+    """
+    candidates = []
     for match in _URL_RE.finditer(raw_body or ""):
         url = match.group(0).rstrip(".,);:'\"")
         if _URL_SKIP.search(url):
             continue
-        return url
-    return ""
+        candidates.append(url)
+    if not candidates:
+        return ""
+    # prefer_domain arrives as a full address; the domain is after the "@".
+    host = (prefer_domain or "").rsplit("@", 1)[-1].strip().lower()
+    root = ".".join(host.split(".")[-2:]) if host else ""
+    if root:
+        for url in candidates:
+            if root in url.lower():
+                return url
+    return candidates[0]
 
 
 def email_item(msg, since):
@@ -241,11 +304,12 @@ def email_item(msg, since):
     sender_name = _decode_header(sender_name)
     sender = sender_name or sender_addr or "unknown sender"
     raw = _raw_body(msg)
+    link = resolve_link(first_link(_link_source(msg), sender_addr))
     return {
         "priority": is_priority_sender(sender_name, sender_addr),
         "source": f"Inbox: {sender}",
         "title": _decode_header(msg.get("Subject")) or "(no subject)",
-        "link": first_link(raw),
+        "link": link,
         "summary": clean_summary(raw)[:EMAIL_SUMMARY_TRUNCATE],
         "published": published_dt.isoformat() if published_dt else None,
     }
