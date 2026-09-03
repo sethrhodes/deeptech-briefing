@@ -63,9 +63,13 @@ SUMMARY_TRUNCATE = 400    # chars per RSS entry description, to control tokens
 IMAP_HOST = "imap.gmail.com"
 GMAIL_USER = os.environ.get("GMAIL_USER", "sethnewsmail@gmail.com")
 MAX_EMAIL_ITEMS = 25
-# Funding digests list many opportunities in one message, so 400 chars would
-# clip mid-list. These get a larger budget than an article summary.
-EMAIL_SUMMARY_TRUNCATE = 1200
+# Funding digests list many opportunities in one message, so an article-sized
+# budget clips mid-list. Measured against a real 72h window of this mailbox:
+# bodies run min 407 / p50 2,008 / p90 14,677 / max 79,474 chars. 3,000 leaves
+# 10 of 23 clipped for ~10k tokens; 6,000 would cost 6k more tokens and rescue
+# exactly one message, because the tail is long. Newsletters also front-load
+# the substance, so a clip keeps the part that matters.
+EMAIL_SUMMARY_TRUNCATE = 3000
 
 VALID_SECTIONS = {
     "problems_surfaced", "funding_signals", "technical_breakthroughs",
