@@ -26,8 +26,10 @@ Expects deeptech-feeds.opml in the same directory.
 """
 
 import datetime as dt
+import html
 import json
 import os
+import re
 import sys
 import xml.etree.ElementTree as ET
 
@@ -39,7 +41,8 @@ import requests
 SUPABASE_URL = "https://kcdlsaqqcgngrwreucei.supabase.co"
 
 OPML_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "deeptech-feeds.opml")
-DAILY_CATEGORIES = {"Space", "Energy", "Manufacturing and Industrial", "Research and Advisory"}
+DAILY_CATEGORIES = {"Space", "Energy", "Manufacturing and Industrial",
+                    "Research and Advisory", "Funding Alerts"}
 
 # 72, not 48, because of the weekend. The cron runs Mon-Fri at 13:13 UTC,
 # so Friday's run ends at Fri 13:13 and the next one is Monday. A 48h window
@@ -71,6 +74,27 @@ def load_feed_urls(opml_path, categories):
     return urls
 
 
+_SCRIPT_RE = re.compile(r"<(script|style)[^>]*>.*?</\1>", re.I | re.S)
+_TAG_RE = re.compile(r"<[^>]+>")
+_WS_RE = re.compile(r"\s+")
+
+
+def clean_summary(raw):
+    """Reduce a feed summary to plain text before it gets truncated.
+
+    Most feeds put HTML in <description>, and several lead with a thumbnail
+    <img> whose alt text, CSS classes and dimensions are longer than the
+    truncation budget -- so the model was receiving markup attributes rather
+    than the article. Strip first, then truncate, so the budget buys prose.
+    """
+    if not raw:
+        return ""
+    text = _SCRIPT_RE.sub(" ", raw)
+    text = _TAG_RE.sub(" ", text)
+    text = html.unescape(text)
+    return _WS_RE.sub(" ", text).strip()
+
+
 def fetch_rss_items(feed_urls, since):
     items = []
     for source_name, url in feed_urls:
@@ -91,7 +115,7 @@ def fetch_rss_items(feed_urls, since):
                 published_dt = dt.datetime(*published_struct[:6], tzinfo=dt.timezone.utc)
                 if published_dt < since:
                     continue
-            summary = (entry.get("summary") or "")[:SUMMARY_TRUNCATE]
+            summary = clean_summary(entry.get("summary"))[:SUMMARY_TRUNCATE]
             items.append({
                 "source": source_name,
                 "title": entry.get("title", "(untitled)"),

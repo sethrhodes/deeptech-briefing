@@ -59,6 +59,22 @@
     </outline>
 
     <!--
+      Funding alerts, arriving as email turned into a feed. SBIR topics and
+      Grants.gov opportunities have no usable RSS of their own (Grants.gov's
+      /rss/*.xml paths return the site's HTML shell), so the route is to
+      subscribe those newsletters to a throwaway address that publishes an
+      Atom feed, then read the feed here like any other source.
+
+      Paste the generated feed URL into the outline below and uncomment it.
+      Use a dedicated address: these feed URLs are unguessable but public,
+      so nothing personal should ever be delivered to one.
+    -->
+    <outline text="Funding Alerts" title="Funding Alerts">
+      <!-- <outline type="rss" text="SBIR + Grants.gov alerts" title="SBIR + Grants.gov alerts"
+                xmlUrl="PASTE_FEED_URL_HERE"/> -->
+    </outline>
+
+    <!--
       Research and advisory. Deliberately thin: of the big consultancies,
       only McKinsey publishes a usable feed. BCG, Bain and the IEA all
       return 403 to automated clients: they are refusing bots, so the
