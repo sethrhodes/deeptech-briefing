@@ -1,0 +1,35 @@
+# Temporary. Runs only the gather step to confirm IMAP ingestion works.
+# No Claude call, no Supabase write. Prints counts only, never message
+# content or senders: this repository is public and so are these logs.
+name: Mail check
+on:
+  workflow_dispatch: {}
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - name: Fetch mail, report shape only
+        env:
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+        run: |
+          python - <<'PY'
+          import datetime as dt, os, importlib.util, statistics
+          spec = importlib.util.spec_from_file_location("db", "daily_brief.py")
+          db = importlib.util.module_from_spec(spec); spec.loader.exec_module(db)
+          pw = os.environ.get("GMAIL_APP_PASSWORD")
+          print("app password present:", bool(pw), "| length:", len(pw or ""))
+          since = dt.datetime.now(dt.timezone.utc) - dt.timedelta(hours=db.LOOKBACK_HOURS)
+          items = db.fetch_email_items(since, db.GMAIL_USER, pw)
+          print(f"messages in the last {db.LOOKBACK_HOURS}h: {len(items)}")
+          if items:
+              lens = [len(i["summary"]) for i in items]
+              print(f"  with a usable link : {sum(1 for i in items if i['link'])}/{len(items)}")
+              print(f"  summary chars      : min {min(lens)}, median {statistics.median(lens):.0f}, max {max(lens)}")
+              print(f"  hitting the {db.EMAIL_SUMMARY_TRUNCATE}-char cap: {sum(1 for n in lens if n >= db.EMAIL_SUMMARY_TRUNCATE)}")
+              print(f"  distinct senders   : {len({i['source'] for i in items})}")
+          PY
