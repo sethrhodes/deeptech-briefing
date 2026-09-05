@@ -399,6 +399,19 @@ def briefing_item_count(service_key, briefing_id):
     return len(resp.json())
 
 
+def find_briefing(service_key, brief_date):
+    """Briefing id for a date, or None. Read-only -- never creates a row."""
+    resp = requests.get(
+        f"{SUPABASE_URL}/rest/v1/briefings",
+        headers=supabase_headers(service_key),
+        params={"select": "id", "brief_date": f"eq.{brief_date}", "limit": "1"},
+        timeout=20,
+    )
+    resp.raise_for_status()
+    rows = resp.json()
+    return rows[0]["id"] if rows else None
+
+
 def insert_items(service_key, briefing_id, items):
     rows = []
     for it in items:
@@ -481,6 +494,29 @@ def cmd_gather(args):
     else:
         print(output)  # stdout, so this can be piped
 
+# ---- Subcommand: check --------------------------------------------------------
+
+def cmd_check(args):
+    """Report whether today's briefing still needs writing.
+
+    The schedule fires several times a morning because GitHub's cron runs
+    hours late and sometimes not at all. This makes the extra attempts nearly
+    free: one Supabase read, then the workflow skips every expensive step.
+    """
+    service_key = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
+    today = dt.date.today().isoformat()
+    briefing_id = find_briefing(service_key, today)
+    count = briefing_item_count(service_key, briefing_id) if briefing_id else 0
+    needed = count == 0
+
+    print(f"briefing {today}: {count} items -> {'run' if needed else 'skip'}", file=sys.stderr)
+    gh_output = os.environ.get("GITHUB_OUTPUT")
+    if gh_output:
+        with open(gh_output, "a") as handle:
+            handle.write(f"needed={'true' if needed else 'false'}\n")
+    print("true" if needed else "false")
+
+
 # ---- Subcommand: write --------------------------------------------------------
 
 def cmd_write(args):
@@ -519,6 +555,9 @@ def main():
     p_gather = sub.add_parser("gather", help="Fetch RSS + Supabase dedup list, output JSON")
     p_gather.add_argument("--out", help="Write to this file instead of stdout")
     p_gather.set_defaults(func=cmd_gather)
+
+    p_check = sub.add_parser("check", help="Does today's briefing still need writing?")
+    p_check.set_defaults(func=cmd_check)
 
     p_write = sub.add_parser("write", help="Write a synthesized JSON array to Supabase")
     p_write.add_argument("path", help="Path to the JSON file Claude Code wrote")

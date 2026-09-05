@@ -2,10 +2,23 @@ name: Daily Deep-Tech Brief
 
 on:
   schedule:
-    # 13:13 UTC = 6:13am PDT / 5:13am PST — odd minute on purpose, GitHub
-    # Actions cron is best-effort and top-of-hour runs get delayed most.
-    - cron: "13 13 * * 1-5"
-  workflow_dispatch: {}   # manual trigger from the Actions tab
+    # Five attempts, not one. GitHub's cron is best-effort and has been
+    # running this workflow 3.6-3.9h late every single day, landing ~10am
+    # Pacific instead of 6:13am; it can also drop a run entirely. The first
+    # attempt that actually executes writes the brief and the rest cost about
+    # forty seconds each, because the guard step below skips everything
+    # expensive once the day is already written.
+    #
+    # Starting at 09:13 UTC means that even with the observed ~4h delay the
+    # brief lands close to 6am Pacific; if a run is ever prompt, it simply
+    # arrives early.
+    - cron: "13 9,11,13,15,17 * * 1-5"
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Write even if today's brief already exists"
+        type: boolean
+        default: false
 
 jobs:
   run:
@@ -23,9 +36,18 @@ jobs:
 
       - run: pip install -r requirements.txt
 
+      # Guard: one Supabase read. Everything below is conditional on it, so a
+      # duplicate attempt costs a runner minute and no Claude usage at all.
+      - name: Does today's brief still need writing?
+        id: guard
+        run: python daily_brief.py check
+        env:
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
       # Step 1: gather. Plain Python + HTTP. No LLM, no cost beyond the
       # runner minute.
       - name: Gather RSS + dedup list
+        if: steps.guard.outputs.needed == 'true' || inputs.force
         run: python daily_brief.py gather --out brief_input.json
         env:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
@@ -37,6 +59,7 @@ jobs:
       # usage limits, not metered API billing. No ANTHROPIC_API_KEY
       # anywhere in this workflow.
       - name: Synthesize with Claude Code
+        if: steps.guard.outputs.needed == 'true' || inputs.force
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -114,6 +137,7 @@ jobs:
 
       # Step 3: write. Plain Python + HTTP again. No LLM.
       - name: Write to Supabase
-        run: python daily_brief.py write brief_output.json
+        if: steps.guard.outputs.needed == 'true' || inputs.force
+        run: python daily_brief.py write brief_output.json ${{ inputs.force && '--force' || '' }}
         env:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
